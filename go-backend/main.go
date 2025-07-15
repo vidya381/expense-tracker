@@ -1,7 +1,16 @@
 package main
 
-import "fmt"
+import (
+	"context"
+	"fmt"
+)
 
 func main() {
-	fmt.Println("Expense Tracker Backend is running!")
+	conn, err := connectDB()
+	if err != nil {
+		panic(err)
+	}
+	defer conn.Close(context.Background())
+
+	fmt.Println("Connected to PostgreSQL successfully!")
 }
