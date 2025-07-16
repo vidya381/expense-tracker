@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	"github.com/vidya381/expense-tracker-backend/handlers"
+	"github.com/vidya381/expense-tracker-backend/middleware"
 	"github.com/vidya381/expense-tracker-backend/models"
 
 	_ "github.com/jackc/pgx/v5/stdlib" // pgx driver with database/sql
@@ -43,12 +44,13 @@ func main() {
 	// Define routes
 	http.HandleFunc("/register", registerHandler)
 	http.HandleFunc("/login", loginHandler)
-	http.HandleFunc("/category/add", addCategoryHandler)
-	http.HandleFunc("/category/list", listCategoryHandler)
-	http.HandleFunc("/transaction/add", addTransactionHandler)
-	http.HandleFunc("/transaction/list", listTransactionHandler)
-	http.HandleFunc("/transaction/update", updateTransactionHandler)
-	http.HandleFunc("/transaction/delete", deleteTransactionHandler)
+	// Protected routes (require JWT in Authorization header)
+	http.HandleFunc("/category/add", middleware.RequireAuth(jwtSecret, addCategoryHandler))
+	http.HandleFunc("/category/list", middleware.RequireAuth(jwtSecret, listCategoryHandler))
+	http.HandleFunc("/transaction/add", middleware.RequireAuth(jwtSecret, addTransactionHandler))
+	http.HandleFunc("/transaction/list", middleware.RequireAuth(jwtSecret, listTransactionHandler))
+	http.HandleFunc("/transaction/update", middleware.RequireAuth(jwtSecret, updateTransactionHandler))
+	http.HandleFunc("/transaction/delete", middleware.RequireAuth(jwtSecret, deleteTransactionHandler))
 
 	fmt.Println("Server running at http://localhost:8080")
 	http.ListenAndServe(":8080", nil)
@@ -112,17 +114,16 @@ func addCategoryHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Only POST allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	userIDStr := r.FormValue("user_id")
+
+	userID, ok := middleware.GetUserID(r)
+	if !ok {
+		http.Error(w, "User not found in context", http.StatusUnauthorized)
+		return
+	}
 	name := r.FormValue("name")
 	ctype := r.FormValue("type")
 
-	userID, err := strconv.Atoi(userIDStr)
-	if err != nil {
-		http.Error(w, "Invalid user_id", http.StatusBadRequest)
-		return
-	}
-
-	err = handlers.AddCategory(db, userID, name, ctype)
+	err := handlers.AddCategory(db, userID, name, ctype)
 	if err != nil {
 		http.Error(w, "Add category failed: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -136,10 +137,10 @@ func listCategoryHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Only GET allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	userIDStr := r.URL.Query().Get("user_id")
-	userID, err := strconv.Atoi(userIDStr)
-	if err != nil {
-		http.Error(w, "Invalid user_id", http.StatusBadRequest)
+
+	userID, ok := middleware.GetUserID(r)
+	if !ok {
+		http.Error(w, "User not found in context", http.StatusUnauthorized)
 		return
 	}
 	cats, err := handlers.ListCategories(db, userID)
@@ -157,7 +158,11 @@ func addTransactionHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID, _ := strconv.Atoi(r.FormValue("user_id"))
+	userID, ok := middleware.GetUserID(r)
+	if !ok {
+		http.Error(w, "User not found in context", http.StatusUnauthorized)
+		return
+	}
 	categoryID, _ := strconv.Atoi(r.FormValue("category_id"))
 	amount, _ := strconv.ParseFloat(r.FormValue("amount"), 64)
 	description := r.FormValue("description")
@@ -185,9 +190,9 @@ func listTransactionHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Only GET allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	userID, err := strconv.Atoi(r.URL.Query().Get("user_id"))
-	if err != nil {
-		http.Error(w, "Invalid user_id", http.StatusBadRequest)
+	userID, ok := middleware.GetUserID(r)
+	if !ok {
+		http.Error(w, "User not found in context", http.StatusUnauthorized)
 		return
 	}
 	list, err := handlers.ListTransactions(db, userID)
@@ -204,8 +209,12 @@ func updateTransactionHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Only POST allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	userID, ok := middleware.GetUserID(r)
+	if !ok {
+		http.Error(w, "User not found in context", http.StatusUnauthorized)
+		return
+	}
 	id, _ := strconv.Atoi(r.FormValue("id"))
-	userID, _ := strconv.Atoi(r.FormValue("user_id"))
 	categoryID, _ := strconv.Atoi(r.FormValue("category_id"))
 	amount, _ := strconv.ParseFloat(r.FormValue("amount"), 64)
 	description := r.FormValue("description")
@@ -234,8 +243,12 @@ func deleteTransactionHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Only POST allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	userID, ok := middleware.GetUserID(r)
+	if !ok {
+		http.Error(w, "User not found in context", http.StatusUnauthorized)
+		return
+	}
 	id, _ := strconv.Atoi(r.FormValue("id"))
-	userID, _ := strconv.Atoi(r.FormValue("user_id"))
 
 	err := handlers.DeleteTransaction(db, id, userID)
 	if err != nil {
