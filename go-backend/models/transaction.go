@@ -7,4 +7,5 @@ type Transaction struct {
 	Amount      float64
 	Description string
 	Date        string
+	CreatedAt   string
 }

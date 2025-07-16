@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	"github.com/vidya381/expense-tracker-backend/handlers"
+	"github.com/vidya381/expense-tracker-backend/models"
 
 	_ "github.com/jackc/pgx/v5/stdlib" // pgx driver with database/sql
 	"github.com/joho/godotenv"
@@ -44,6 +45,10 @@ func main() {
 	http.HandleFunc("/login", loginHandler)
 	http.HandleFunc("/category/add", addCategoryHandler)
 	http.HandleFunc("/category/list", listCategoryHandler)
+	http.HandleFunc("/transaction/add", addTransactionHandler)
+	http.HandleFunc("/transaction/list", listTransactionHandler)
+	http.HandleFunc("/transaction/update", updateTransactionHandler)
+	http.HandleFunc("/transaction/delete", deleteTransactionHandler)
 
 	fmt.Println("Server running at http://localhost:8080")
 	http.ListenAndServe(":8080", nil)
@@ -143,4 +148,99 @@ func listCategoryHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	json.NewEncoder(w).Encode(cats)
+}
+
+// Add a new transaction via POST
+func addTransactionHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Only POST allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	userID, _ := strconv.Atoi(r.FormValue("user_id"))
+	categoryID, _ := strconv.Atoi(r.FormValue("category_id"))
+	amount, _ := strconv.ParseFloat(r.FormValue("amount"), 64)
+	description := r.FormValue("description")
+	date := r.FormValue("date")
+
+	tx := models.Transaction{
+		UserID:      userID,
+		CategoryID:  categoryID,
+		Amount:      amount,
+		Description: description,
+		Date:        date,
+	}
+
+	err := handlers.AddTransaction(db, tx)
+	if err != nil {
+		http.Error(w, "Error adding transaction: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Write([]byte("Transaction added successfully"))
+}
+
+// List all transactions for a user (GET)
+func listTransactionHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Only GET allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	userID, err := strconv.Atoi(r.URL.Query().Get("user_id"))
+	if err != nil {
+		http.Error(w, "Invalid user_id", http.StatusBadRequest)
+		return
+	}
+	list, err := handlers.ListTransactions(db, userID)
+	if err != nil {
+		http.Error(w, "Failed to fetch transactions: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	json.NewEncoder(w).Encode(list)
+}
+
+// Update an existing transaction (POST)
+func updateTransactionHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Only POST allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	id, _ := strconv.Atoi(r.FormValue("id"))
+	userID, _ := strconv.Atoi(r.FormValue("user_id"))
+	categoryID, _ := strconv.Atoi(r.FormValue("category_id"))
+	amount, _ := strconv.ParseFloat(r.FormValue("amount"), 64)
+	description := r.FormValue("description")
+	date := r.FormValue("date")
+
+	tx := models.Transaction{
+		ID:          id,
+		UserID:      userID,
+		CategoryID:  categoryID,
+		Amount:      amount,
+		Description: description,
+		Date:        date,
+	}
+
+	err := handlers.UpdateTransaction(db, tx)
+	if err != nil {
+		http.Error(w, "Error updating transaction: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Write([]byte("Transaction updated successfully"))
+}
+
+// Delete a transaction (POST)
+func deleteTransactionHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Only POST allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	id, _ := strconv.Atoi(r.FormValue("id"))
+	userID, _ := strconv.Atoi(r.FormValue("user_id"))
+
+	err := handlers.DeleteTransaction(db, id, userID)
+	if err != nil {
+		http.Error(w, "Failed to delete transaction: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Write([]byte("Transaction deleted"))
 }
