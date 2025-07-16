@@ -1,0 +1,23 @@
+# Ignore environment files
+*.env
+
+# Go build artifacts
+*.exe
+*.out
+*.test
+
+# Dependency directories (if any)
+vendor/
+
+# Logs
+*.log
+
+# IDE/editor settings
+.vscode/
+.idea/
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+Testing.txt
