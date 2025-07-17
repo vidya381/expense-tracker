@@ -143,7 +143,7 @@ func addCategoryHandler(w http.ResponseWriter, r *http.Request) {
 
 	err := handlers.AddCategory(db, userID, name, ctype)
 	if err != nil {
-		http.Error(w, "Add category failed: "+err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Add category failed: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 	w.Write([]byte("Category added successfully"))
