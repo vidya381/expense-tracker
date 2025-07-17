@@ -51,6 +51,9 @@ func main() {
 	http.HandleFunc("/transaction/list", middleware.RequireAuth(jwtSecret, listTransactionHandler))
 	http.HandleFunc("/transaction/update", middleware.RequireAuth(jwtSecret, updateTransactionHandler))
 	http.HandleFunc("/transaction/delete", middleware.RequireAuth(jwtSecret, deleteTransactionHandler))
+	http.HandleFunc("/summary/totals", middleware.RequireAuth(jwtSecret, summaryTotalsHandler))
+	http.HandleFunc("/summary/monthly", middleware.RequireAuth(jwtSecret, summaryMonthlyHandler))
+	http.HandleFunc("/summary/category", middleware.RequireAuth(jwtSecret, summaryCategoryHandler))
 
 	fmt.Println("Server running at http://localhost:8080")
 	http.ListenAndServe(":8080", nil)
@@ -256,4 +259,54 @@ func deleteTransactionHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Write([]byte("Transaction deleted"))
+}
+
+// Returns overall totals for this user
+func summaryTotalsHandler(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.GetUserID(r)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	expenses, income, err := handlers.GetTotals(db, userID)
+	if err != nil {
+		http.Error(w, "Error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	json.NewEncoder(w).Encode(map[string]float64{
+		"total_expenses": expenses,
+		"total_income":   income,
+	})
+}
+
+// Returns monthly group totals for this user
+func summaryMonthlyHandler(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.GetUserID(r)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	summary, err := handlers.GetMonthlyTotals(db, userID)
+	if err != nil {
+		http.Error(w, "Error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	json.NewEncoder(w).Encode(summary)
+}
+
+// Returns category-wise breakdown for this user (optionally filtered by date range)
+func summaryCategoryHandler(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.GetUserID(r)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	from := r.URL.Query().Get("from")
+	to := r.URL.Query().Get("to")
+	result, err := handlers.GetCategoryBreakdown(db, userID, from, to)
+	if err != nil {
+		http.Error(w, "Error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	json.NewEncoder(w).Encode(result)
 }
