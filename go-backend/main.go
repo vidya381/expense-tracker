@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/vidya381/expense-tracker-backend/handlers"
 	"github.com/vidya381/expense-tracker-backend/middleware"
@@ -127,8 +128,18 @@ func addCategoryHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "User not found in context", http.StatusUnauthorized)
 		return
 	}
-	name := r.FormValue("name")
-	ctype := r.FormValue("type")
+
+	name := strings.TrimSpace(r.FormValue("name"))
+	ctype := strings.ToLower(strings.TrimSpace(r.FormValue("type")))
+
+	if name == "" {
+		http.Error(w, "Category name is required", http.StatusBadRequest)
+		return
+	}
+	if ctype != "expense" && ctype != "income" {
+		http.Error(w, "Category type must be 'expense' or 'income'", http.StatusBadRequest)
+		return
+	}
 
 	err := handlers.AddCategory(db, userID, name, ctype)
 	if err != nil {
@@ -170,10 +181,23 @@ func addTransactionHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "User not found in context", http.StatusUnauthorized)
 		return
 	}
-	categoryID, _ := strconv.Atoi(r.FormValue("category_id"))
-	amount, _ := strconv.ParseFloat(r.FormValue("amount"), 64)
-	description := r.FormValue("description")
+
+	categoryID, err := strconv.Atoi(r.FormValue("category_id"))
+	if err != nil || categoryID <= 0 {
+		http.Error(w, "Valid category_id is required", http.StatusBadRequest)
+		return
+	}
+	amount, err := strconv.ParseFloat(r.FormValue("amount"), 64)
+	if err != nil || amount <= 0 {
+		http.Error(w, "Amount must be a number greater than zero", http.StatusBadRequest)
+		return
+	}
+	description := strings.TrimSpace(r.FormValue("description"))
 	date := r.FormValue("date")
+	if date == "" {
+		http.Error(w, "Transaction date is required", http.StatusBadRequest)
+		return
+	}
 
 	tx := models.Transaction{
 		UserID:      userID,
@@ -183,7 +207,7 @@ func addTransactionHandler(w http.ResponseWriter, r *http.Request) {
 		Date:        date,
 	}
 
-	err := handlers.AddTransaction(db, tx)
+	err = handlers.AddTransaction(db, tx)
 	if err != nil {
 		http.Error(w, "Error adding transaction: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -221,11 +245,28 @@ func updateTransactionHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "User not found in context", http.StatusUnauthorized)
 		return
 	}
-	id, _ := strconv.Atoi(r.FormValue("id"))
-	categoryID, _ := strconv.Atoi(r.FormValue("category_id"))
-	amount, _ := strconv.ParseFloat(r.FormValue("amount"), 64)
-	description := r.FormValue("description")
+
+	id, err := strconv.Atoi(r.FormValue("id"))
+	if err != nil || id <= 0 {
+		http.Error(w, "Valid transaction ID is required", http.StatusBadRequest)
+		return
+	}
+	categoryID, err := strconv.Atoi(r.FormValue("category_id"))
+	if err != nil || categoryID <= 0 {
+		http.Error(w, "Valid category_id is required", http.StatusBadRequest)
+		return
+	}
+	amount, err := strconv.ParseFloat(r.FormValue("amount"), 64)
+	if err != nil || amount <= 0 {
+		http.Error(w, "Amount must be a number greater than zero", http.StatusBadRequest)
+		return
+	}
+	description := strings.TrimSpace(r.FormValue("description"))
 	date := r.FormValue("date")
+	if date == "" {
+		http.Error(w, "Transaction date is required", http.StatusBadRequest)
+		return
+	}
 
 	tx := models.Transaction{
 		ID:          id,
@@ -236,7 +277,7 @@ func updateTransactionHandler(w http.ResponseWriter, r *http.Request) {
 		Date:        date,
 	}
 
-	err := handlers.UpdateTransaction(db, tx)
+	err = handlers.UpdateTransaction(db, tx)
 	if err != nil {
 		http.Error(w, "Error updating transaction: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -255,9 +296,14 @@ func deleteTransactionHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "User not found in context", http.StatusUnauthorized)
 		return
 	}
-	id, _ := strconv.Atoi(r.FormValue("id"))
 
-	err := handlers.DeleteTransaction(db, id, userID)
+	id, err := strconv.Atoi(r.FormValue("id"))
+	if err != nil || id <= 0 {
+		http.Error(w, "Valid transaction ID is required", http.StatusBadRequest)
+		return
+	}
+
+	err = handlers.DeleteTransaction(db, id, userID)
 	if err != nil {
 		http.Error(w, "Failed to delete transaction: "+err.Error(), http.StatusInternalServerError)
 		return
