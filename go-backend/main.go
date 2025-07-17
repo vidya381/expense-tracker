@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -54,6 +55,9 @@ func main() {
 	http.HandleFunc("/summary/totals", middleware.RequireAuth(jwtSecret, summaryTotalsHandler))
 	http.HandleFunc("/summary/monthly", middleware.RequireAuth(jwtSecret, summaryMonthlyHandler))
 	http.HandleFunc("/summary/category", middleware.RequireAuth(jwtSecret, summaryCategoryHandler))
+	http.HandleFunc("/summary/group", middleware.RequireAuth(jwtSecret, summaryGroupHandler))
+	http.HandleFunc("/summary/category/monthly", middleware.RequireAuth(jwtSecret, summaryCategoryMonthHandler))
+	http.HandleFunc("/export", middleware.RequireAuth(jwtSecret, exportTransactionsHandler))
 
 	fmt.Println("Server running at http://localhost:8080")
 	http.ListenAndServe(":8080", nil)
@@ -294,7 +298,7 @@ func summaryMonthlyHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(summary)
 }
 
-// Returns category-wise breakdown for this user (optionally filtered by date range)
+// Returns category-wise breakdown for this user for a date range
 func summaryCategoryHandler(w http.ResponseWriter, r *http.Request) {
 	userID, ok := middleware.GetUserID(r)
 	if !ok {
@@ -309,4 +313,78 @@ func summaryCategoryHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	json.NewEncoder(w).Encode(result)
+}
+
+// Group by period endpoint
+func summaryGroupHandler(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.GetUserID(r)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	granularity := r.URL.Query().Get("by")
+	summary, err := handlers.GetGroupTotals(db, userID, granularity)
+	if err != nil {
+		http.Error(w, "Error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	json.NewEncoder(w).Encode(summary)
+}
+
+// Category-wise summary for given year/month
+func summaryCategoryMonthHandler(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.GetUserID(r)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	year, _ := strconv.Atoi(r.URL.Query().Get("year"))
+	month, _ := strconv.Atoi(r.URL.Query().Get("month"))
+	if year == 0 || month == 0 {
+		http.Error(w, "year and month required", http.StatusBadRequest)
+		return
+	}
+	result, err := handlers.GetCategoryMonthSummary(db, userID, year, month)
+	if err != nil {
+		http.Error(w, "Error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	json.NewEncoder(w).Encode(result)
+}
+
+// Export transactions to CSV or JSON
+func exportTransactionsHandler(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.GetUserID(r)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	transactions, err := handlers.ListTransactions(db, userID)
+	if err != nil {
+		http.Error(w, "Failed to fetch transactions: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	format := r.URL.Query().Get("format")
+	if format == "csv" {
+		w.Header().Set("Content-Disposition", "attachment;filename=transactions.csv")
+		w.Header().Set("Content-Type", "text/csv")
+		writer := csv.NewWriter(w)
+		writer.Write([]string{"ID", "CategoryID", "Amount", "Description", "Date", "CreatedAt"})
+		for _, tx := range transactions {
+			writer.Write([]string{
+				strconv.Itoa(tx.ID),
+				strconv.Itoa(tx.CategoryID),
+				fmt.Sprintf("%.2f", tx.Amount),
+				tx.Description,
+				tx.Date,
+				tx.CreatedAt,
+			})
+		}
+		writer.Flush()
+		return
+	}
+	// Default: JSON
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(transactions)
 }
