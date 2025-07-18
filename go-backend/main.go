@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/mail"
 	"os"
 	"strconv"
 	"strings"
@@ -83,9 +84,32 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	username := r.FormValue("username")
-	email := r.FormValue("email")
+	username := strings.TrimSpace(r.FormValue("username"))
+	email := strings.TrimSpace(r.FormValue("email"))
 	password := r.FormValue("password")
+
+	// Basic validation
+	if username == "" {
+		http.Error(w, "Username is required", http.StatusBadRequest)
+		return
+	}
+	if email == "" {
+		http.Error(w, "Email is required", http.StatusBadRequest)
+		return
+	}
+	parts := strings.Split(email, "@")
+	if len(parts) != 2 || !strings.Contains(parts[1], ".") {
+		http.Error(w, "Invalid email format", http.StatusBadRequest)
+		return
+	}
+	if _, err := mail.ParseAddress(email); err != nil {
+		http.Error(w, "Invalid email format", http.StatusBadRequest)
+		return
+	}
+	if len(password) < 4 {
+		http.Error(w, "Password must be at least 4 characters", http.StatusBadRequest)
+		return
+	}
 
 	err := handlers.RegisterUser(db, username, email, password)
 	if err != nil {
@@ -104,8 +128,13 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	email := r.FormValue("email")
+	email := strings.TrimSpace(r.FormValue("email"))
 	password := r.FormValue("password")
+
+	if email == "" || password == "" {
+		http.Error(w, "Email and password are required", http.StatusBadRequest)
+		return
+	}
 
 	token, err := handlers.LoginUser(db, email, password, jwtSecret)
 	if err != nil {
