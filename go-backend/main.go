@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/vidya381/expense-tracker-backend/handlers"
+	"github.com/vidya381/expense-tracker-backend/jobs"
 	"github.com/vidya381/expense-tracker-backend/middleware"
 	"github.com/vidya381/expense-tracker-backend/models"
 
@@ -44,6 +45,8 @@ func main() {
 
 	fmt.Println("Connected to PostgreSQL successfully!")
 
+	jobs.StartRecurringJob(db)
+
 	// Define routes
 	http.HandleFunc("/register", registerHandler)
 	http.HandleFunc("/login", loginHandler)
@@ -60,6 +63,7 @@ func main() {
 	http.HandleFunc("/summary/group", middleware.RequireAuth(jwtSecret, summaryGroupHandler))
 	http.HandleFunc("/summary/category/monthly", middleware.RequireAuth(jwtSecret, summaryCategoryMonthHandler))
 	http.HandleFunc("/export", middleware.RequireAuth(jwtSecret, exportTransactionsHandler))
+	http.HandleFunc("/recurring/add", middleware.RequireAuth(jwtSecret, addRecurringHandler))
 
 	fmt.Println("Server running at http://localhost:8080")
 	http.ListenAndServe(":8080", nil)
@@ -462,4 +466,48 @@ func exportTransactionsHandler(w http.ResponseWriter, r *http.Request) {
 	// Default: JSON
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(transactions)
+}
+
+// User to add a recurring transaction.
+func addRecurringHandler(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.GetUserID(r)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	categoryID, err := strconv.Atoi(r.FormValue("category_id"))
+	if err != nil || categoryID <= 0 {
+		http.Error(w, "Valid category_id is required", http.StatusBadRequest)
+		return
+	}
+	amount, err := strconv.ParseFloat(r.FormValue("amount"), 64)
+	if err != nil || amount <= 0 {
+		http.Error(w, "Amount must be a positive number", http.StatusBadRequest)
+		return
+	}
+	description := strings.TrimSpace(r.FormValue("description"))
+	startDate := r.FormValue("start_date")
+	recurrence := strings.ToLower(strings.TrimSpace(r.FormValue("recurrence")))
+	if startDate == "" || recurrence == "" {
+		http.Error(w, "start_date and recurrence are required", http.StatusBadRequest)
+		return
+	}
+
+	rt := models.RecurringTransaction{
+		UserID:      userID,
+		CategoryID:  categoryID,
+		Amount:      amount,
+		Description: description,
+		StartDate:   startDate,
+		Recurrence:  recurrence,
+	}
+
+	err = handlers.AddRecurringTransaction(db, rt)
+	if err != nil {
+		http.Error(w, "Failed to add recurring transaction: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.Write([]byte("Recurring transaction added!"))
 }
