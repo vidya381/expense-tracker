@@ -15,7 +15,7 @@ func StartRecurringJob(db *sql.DB) {
 		for {
 			ProcessRecurringTransactions(db)
 			time.Sleep(1 * time.Hour) // Check every hour
-			fmt.Println("Processed Recurring Transactions")
+			// fmt.Println("Processed Recurring Transactions")
 		}
 	}()
 }
@@ -50,8 +50,8 @@ func ProcessRecurringTransactions(db *sql.DB) {
 			rt.LastOccurrence = nil
 		}
 
-		fmt.Printf("Checking recurring id=%d desc=%q start=%s last_occurrence=%v recurrence=%s\n",
-			rt.ID, rt.Description, rt.StartDate, rt.LastOccurrence, rt.Recurrence)
+		// fmt.Printf("Checking recurring id=%d desc=%q start=%s last_occurrence=%v recurrence=%s\n",
+		// 	rt.ID, rt.Description, rt.StartDate, rt.LastOccurrence, rt.Recurrence)
 
 		dueDates := GetAllMissedDueDates(rt, now)
 		if len(dueDates) > 0 {
@@ -65,7 +65,7 @@ func ProcessRecurringTransactions(db *sql.DB) {
 					fmt.Println("Recurring jobs: error creating transaction:", err)
 					continue
 				}
-				fmt.Printf("Created recurring transaction instance for user %d on %s\n", rt.UserID, dueDate.Format("2006-01-02"))
+				// fmt.Printf("Created recurring transaction instance for user %d on %s\n", rt.UserID, dueDate.Format("2006-01-02"))
 			}
 			// Update last_occurrence to latest due date
 			latestDue := dueDates[len(dueDates)-1]

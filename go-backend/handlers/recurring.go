@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/vidya381/expense-tracker-backend/models"
 )
@@ -21,4 +22,36 @@ func AddRecurringTransaction(db *sql.DB, rt models.RecurringTransaction) error {
 		VALUES ($1, $2, $3, $4, $5, $6)`,
 		rt.UserID, rt.CategoryID, rt.Amount, rt.Description, rt.StartDate, rec)
 	return err
+}
+
+// Lists all recurring transactions for a user
+func ListRecurringTransactions(db *sql.DB, userID int) ([]models.RecurringTransaction, error) {
+	rows, err := db.QueryContext(context.Background(),
+		`SELECT id, user_id, category_id, amount, description, start_date, recurrence, last_occurrence, created_at
+		 FROM recurring_transactions
+		 WHERE user_id = $1
+		 ORDER BY start_date DESC`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var list []models.RecurringTransaction
+	for rows.Next() {
+		var rt models.RecurringTransaction
+		var lastOccurrence sql.NullTime
+		var createdAt time.Time
+		err := rows.Scan(&rt.ID, &rt.UserID, &rt.CategoryID, &rt.Amount, &rt.Description, &rt.StartDate, &rt.Recurrence, &lastOccurrence, &createdAt)
+		if err != nil {
+			return nil, err
+		}
+		if lastOccurrence.Valid {
+			rt.LastOccurrence = &lastOccurrence.Time
+		} else {
+			rt.LastOccurrence = nil
+		}
+		rt.CreatedAt = createdAt.Format("2006-01-02")
+		list = append(list, rt)
+	}
+	return list, nil
 }
