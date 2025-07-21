@@ -65,6 +65,8 @@ func main() {
 	http.HandleFunc("/export", middleware.RequireAuth(jwtSecret, exportTransactionsHandler))
 	http.HandleFunc("/recurring/add", middleware.RequireAuth(jwtSecret, addRecurringHandler))
 	http.HandleFunc("/recurring/list", middleware.RequireAuth(jwtSecret, listRecurringHandler))
+	http.HandleFunc("/recurring/edit", middleware.RequireAuth(jwtSecret, editRecurringHandler))
+	http.HandleFunc("/recurring/delete", middleware.RequireAuth(jwtSecret, deleteRecurringHandler))
 
 	fmt.Println("Server running at http://localhost:8080")
 	http.ListenAndServe(":8080", nil)
@@ -526,4 +528,59 @@ func listRecurringHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	json.NewEncoder(w).Encode(recurrings)
+}
+
+func editRecurringHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Only POST allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	userID, ok := middleware.GetUserID(r)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	id, err := strconv.Atoi(r.FormValue("id"))
+	if err != nil {
+		http.Error(w, "Valid id is required", http.StatusBadRequest)
+		return
+	}
+	amount, err := strconv.ParseFloat(r.FormValue("amount"), 64)
+	if err != nil || amount <= 0 {
+		http.Error(w, "Amount must be a positive number", http.StatusBadRequest)
+		return
+	}
+	description := r.FormValue("description")
+	startDate := r.FormValue("start_date")
+	recurrence := strings.ToLower(strings.TrimSpace(r.FormValue("recurrence")))
+
+	err = handlers.EditRecurringTransaction(db, userID, id, amount, description, startDate, recurrence)
+	if err != nil {
+		http.Error(w, "Failed to edit recurring transaction: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Write([]byte("Recurring transaction updated!"))
+}
+
+func deleteRecurringHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Only POST allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	userID, ok := middleware.GetUserID(r)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	id, err := strconv.Atoi(r.FormValue("id"))
+	if err != nil {
+		http.Error(w, "Valid id is required", http.StatusBadRequest)
+		return
+	}
+	err = handlers.DeleteRecurringTransaction(db, id, userID)
+	if err != nil {
+		http.Error(w, "Failed to delete recurring transaction: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Write([]byte("Recurring transaction deleted!"))
 }
