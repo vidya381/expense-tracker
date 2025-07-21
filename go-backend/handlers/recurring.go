@@ -55,3 +55,21 @@ func ListRecurringTransactions(db *sql.DB, userID int) ([]models.RecurringTransa
 	}
 	return list, nil
 }
+
+// Edits a recurring transaction. Only fields that make sense are updatable.
+func EditRecurringTransaction(db *sql.DB, userID, id int, amount float64, description, startDate, recurrence string) error {
+	// Only allow update if user owns it
+	_, err := db.ExecContext(context.Background(),
+		`UPDATE recurring_transactions
+		 SET amount = $1, description = $2, start_date = $3, recurrence = $4
+		 WHERE id = $5 AND user_id = $6`,
+		amount, description, startDate, recurrence, id, userID)
+	return err
+}
+
+// Delete recurring transaction
+func DeleteRecurringTransaction(db *sql.DB, id, userID int) error {
+	_, err := db.ExecContext(context.Background(),
+		"DELETE FROM recurring_transactions WHERE id = $1 AND user_id = $2", id, userID)
+	return err
+}
