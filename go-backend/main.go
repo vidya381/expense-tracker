@@ -64,6 +64,7 @@ func main() {
 	http.HandleFunc("/summary/category/monthly", middleware.RequireAuth(jwtSecret, summaryCategoryMonthHandler))
 	http.HandleFunc("/export", middleware.RequireAuth(jwtSecret, exportTransactionsHandler))
 	http.HandleFunc("/recurring/add", middleware.RequireAuth(jwtSecret, addRecurringHandler))
+	http.HandleFunc("/recurring/list", middleware.RequireAuth(jwtSecret, listRecurringHandler))
 
 	fmt.Println("Server running at http://localhost:8080")
 	http.ListenAndServe(":8080", nil)
@@ -510,4 +511,19 @@ func addRecurringHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Write([]byte("Recurring transaction added!"))
+}
+
+// Returns all recurring transactions for the authenticated user
+func listRecurringHandler(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.GetUserID(r)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	recurrings, err := handlers.ListRecurringTransactions(db, userID)
+	if err != nil {
+		http.Error(w, "Failed to list recurring transactions: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	json.NewEncoder(w).Encode(recurrings)
 }
