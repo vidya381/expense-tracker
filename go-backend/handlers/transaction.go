@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"database/sql"
+	"fmt"
 
 	"github.com/vidya381/expense-tracker-backend/models"
 )
@@ -53,4 +54,68 @@ func DeleteTransaction(db *sql.DB, id, userID int) error {
 	_, err := db.ExecContext(context.Background(),
 		`DELETE FROM transactions WHERE id = $1 AND user_id = $2`, id, userID)
 	return err
+}
+
+// Search and Filter by keyword, category, date range, and amount range
+func FilterTransactions(
+	db *sql.DB,
+	userID int,
+	keyword string,
+	categoryID int,
+	dateFrom, dateTo string,
+	amountMin, amountMax float64,
+) ([]models.Transaction, error) {
+
+	base := `SELECT id, user_id, category_id, amount, description, date, created_at
+	         FROM transactions WHERE user_id = $1`
+	args := []interface{}{userID}
+	argpos := 2 // db/sql placeholders $2, $3, etc.
+
+	if keyword != "" {
+		base += fmt.Sprintf(" AND description ILIKE $%d", argpos)
+		args = append(args, "%"+keyword+"%")
+		argpos++
+	}
+	if categoryID > 0 {
+		base += fmt.Sprintf(" AND category_id = $%d", argpos)
+		args = append(args, categoryID)
+		argpos++
+	}
+	if dateFrom != "" {
+		base += fmt.Sprintf(" AND date >= $%d", argpos)
+		args = append(args, dateFrom)
+		argpos++
+	}
+	if dateTo != "" {
+		base += fmt.Sprintf(" AND date <= $%d", argpos)
+		args = append(args, dateTo)
+		argpos++
+	}
+	if amountMin > 0 {
+		base += fmt.Sprintf(" AND amount >= $%d", argpos)
+		args = append(args, amountMin)
+		argpos++
+	}
+	if amountMax > 0 {
+		base += fmt.Sprintf(" AND amount <= $%d", argpos)
+		args = append(args, amountMax)
+		argpos++
+	}
+	base += " ORDER BY date DESC"
+
+	rows, err := db.QueryContext(context.Background(), base, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var results []models.Transaction
+	for rows.Next() {
+		var t models.Transaction
+		if err := rows.Scan(&t.ID, &t.UserID, &t.CategoryID, &t.Amount, &t.Description, &t.Date, &t.CreatedAt); err != nil {
+			return nil, err
+		}
+		results = append(results, t)
+	}
+	return results, nil
 }
