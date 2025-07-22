@@ -589,9 +589,38 @@ func deleteRecurringHandler(w http.ResponseWriter, r *http.Request) {
 func searchAndFilterTransactionsHandler(w http.ResponseWriter, r *http.Request) {
 	userID, ok := middleware.GetUserID(r)
 	if !ok {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		jsonError(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
+
+	// Pagination
+	limit := 20
+	if l := r.URL.Query().Get("limit"); l != "" {
+		if v, err := strconv.Atoi(l); err == nil && v > 0 && v <= 100 {
+			limit = v
+		}
+	}
+	offset := 0
+	if o := r.URL.Query().Get("offset"); o != "" {
+		if v, err := strconv.Atoi(o); err == nil && v >= 0 {
+			offset = v
+		}
+	}
+
+	// Sorting
+	sortParam := r.URL.Query().Get("sort")
+	allowedSorts := map[string]string{
+		"date_asc":    "date ASC",
+		"date_desc":   "date DESC",
+		"amount_asc":  "amount ASC",
+		"amount_desc": "amount DESC",
+	}
+	orderBy := "date DESC"
+	if s, ok := allowedSorts[sortParam]; ok {
+		orderBy = s
+	}
+
+	// Filters
 	keyword := r.URL.Query().Get("q")
 	categoryID, _ := strconv.Atoi(r.URL.Query().Get("category_id"))
 	dateFrom := r.URL.Query().Get("from")
@@ -599,13 +628,18 @@ func searchAndFilterTransactionsHandler(w http.ResponseWriter, r *http.Request) 
 	amountMin, _ := strconv.ParseFloat(r.URL.Query().Get("min_amount"), 64)
 	amountMax, _ := strconv.ParseFloat(r.URL.Query().Get("max_amount"), 64)
 
-	list, err := handlers.FilterTransactions(
-		db, userID, keyword, categoryID,
-		dateFrom, dateTo, amountMin, amountMax,
+	list, err := handlers.FilterTransactionsPaginated(
+		db, userID, keyword, categoryID, dateFrom, dateTo, amountMin, amountMax, orderBy, limit, offset,
 	)
 	if err != nil {
-		http.Error(w, "Search error: "+err.Error(), http.StatusInternalServerError)
+		jsonError(w, "Search error: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 	json.NewEncoder(w).Encode(list)
+}
+
+func jsonError(w http.ResponseWriter, msg string, code int) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	json.NewEncoder(w).Encode(map[string]string{"error": msg})
 }
