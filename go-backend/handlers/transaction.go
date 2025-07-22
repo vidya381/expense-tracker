@@ -56,20 +56,25 @@ func DeleteTransaction(db *sql.DB, id, userID int) error {
 	return err
 }
 
-// Search and Filter by keyword, category, date range, and amount range
-func FilterTransactions(
+// FilterTransactionsPaginated supports filtering, pagination, and sorting.
+func FilterTransactionsPaginated(
 	db *sql.DB,
 	userID int,
 	keyword string,
 	categoryID int,
-	dateFrom, dateTo string,
-	amountMin, amountMax float64,
+	dateFrom string,
+	dateTo string,
+	amountMin float64,
+	amountMax float64,
+	orderBy string,
+	limit int,
+	offset int,
 ) ([]models.Transaction, error) {
 
 	base := `SELECT id, user_id, category_id, amount, description, date, created_at
 	         FROM transactions WHERE user_id = $1`
 	args := []interface{}{userID}
-	argpos := 2 // db/sql placeholders $2, $3, etc.
+	argpos := 2
 
 	if keyword != "" {
 		base += fmt.Sprintf(" AND description ILIKE $%d", argpos)
@@ -101,7 +106,15 @@ func FilterTransactions(
 		args = append(args, amountMax)
 		argpos++
 	}
-	base += " ORDER BY date DESC"
+
+	if orderBy == "" {
+		orderBy = "date DESC"
+	}
+	base += " ORDER BY " + orderBy
+
+	// Add pagination
+	base += fmt.Sprintf(" LIMIT $%d OFFSET $%d", argpos, argpos+1)
+	args = append(args, limit, offset)
 
 	rows, err := db.QueryContext(context.Background(), base, args...)
 	if err != nil {
