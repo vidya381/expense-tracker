@@ -67,6 +67,7 @@ func main() {
 	http.HandleFunc("/recurring/list", middleware.RequireAuth(jwtSecret, listRecurringHandler))
 	http.HandleFunc("/recurring/edit", middleware.RequireAuth(jwtSecret, editRecurringHandler))
 	http.HandleFunc("/recurring/delete", middleware.RequireAuth(jwtSecret, deleteRecurringHandler))
+	http.HandleFunc("/transactions/search", middleware.RequireAuth(jwtSecret, searchAndFilterTransactionsHandler))
 
 	fmt.Println("Server running at http://localhost:8080")
 	http.ListenAndServe(":8080", nil)
@@ -583,4 +584,28 @@ func deleteRecurringHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Write([]byte("Recurring transaction deleted!"))
+}
+
+func searchAndFilterTransactionsHandler(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.GetUserID(r)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	keyword := r.URL.Query().Get("q")
+	categoryID, _ := strconv.Atoi(r.URL.Query().Get("category_id"))
+	dateFrom := r.URL.Query().Get("from")
+	dateTo := r.URL.Query().Get("to")
+	amountMin, _ := strconv.ParseFloat(r.URL.Query().Get("min_amount"), 64)
+	amountMax, _ := strconv.ParseFloat(r.URL.Query().Get("max_amount"), 64)
+
+	list, err := handlers.FilterTransactions(
+		db, userID, keyword, categoryID,
+		dateFrom, dateTo, amountMin, amountMax,
+	)
+	if err != nil {
+		http.Error(w, "Search error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	json.NewEncoder(w).Encode(list)
 }
