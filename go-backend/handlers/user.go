@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -10,7 +11,33 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+var (
+	ErrEmailExists        = errors.New("email_exists")
+	ErrUsernameExists     = errors.New("username_exists")
+	ErrUserNotFound       = errors.New("user_not_found")
+	ErrInvalidCredentials = errors.New("invalid_credentials")
+)
+
 func RegisterUser(db *sql.DB, username, email, password string) error {
+	// Check if email exists
+	var exists bool
+	err := db.QueryRow("SELECT EXISTS (SELECT 1 FROM users WHERE email = $1)", email).Scan(&exists)
+	if err != nil {
+		return err
+	}
+	if exists {
+		return ErrEmailExists
+	}
+
+	// Check if username exists
+	err = db.QueryRow("SELECT EXISTS (SELECT 1 FROM users WHERE username = $1)", username).Scan(&exists)
+	if err != nil {
+		return err
+	}
+	if exists {
+		return ErrUsernameExists
+	}
+
 	// Hash the password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
@@ -31,14 +58,16 @@ func LoginUser(db *sql.DB, email, password, jwtSecret string) (string, error) {
 	var userID int
 	var hashedPassword string
 
-	err := db.QueryRowContext(context.Background(),
-		"SELECT id, password FROM users WHERE email = $1", email).Scan(&userID, &hashedPassword)
+	err := db.QueryRow("SELECT id, password FROM users WHERE email = $1", email).Scan(&userID, &hashedPassword)
+	if err == sql.ErrNoRows {
+		return "", ErrUserNotFound
+	}
 	if err != nil {
-		return "", fmt.Errorf("user not found or db error")
+		return "", err
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password)); err != nil {
-		return "", fmt.Errorf("invalid password")
+	if bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password)) != nil {
+		return "", ErrInvalidCredentials
 	}
 
 	// Create and sign JWT
