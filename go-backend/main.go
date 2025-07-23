@@ -5,12 +5,14 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"net/mail"
 	"os"
 	"strconv"
 	"strings"
 
+	"github.com/rs/cors"
 	"github.com/vidya381/expense-tracker-backend/handlers"
 	"github.com/vidya381/expense-tracker-backend/jobs"
 	"github.com/vidya381/expense-tracker-backend/middleware"
@@ -47,30 +49,39 @@ func main() {
 
 	jobs.StartRecurringJob(db)
 
+	mux := http.NewServeMux()
+
 	// Define routes
-	http.HandleFunc("/register", registerHandler)
-	http.HandleFunc("/login", loginHandler)
+	mux.HandleFunc("/register", registerHandler)
+	mux.HandleFunc("/login", loginHandler)
 	// Protected routes (require JWT in Authorization header)
-	http.HandleFunc("/category/add", middleware.RequireAuth(jwtSecret, addCategoryHandler))
-	http.HandleFunc("/category/list", middleware.RequireAuth(jwtSecret, listCategoryHandler))
-	http.HandleFunc("/transaction/add", middleware.RequireAuth(jwtSecret, addTransactionHandler))
-	http.HandleFunc("/transaction/list", middleware.RequireAuth(jwtSecret, listTransactionHandler))
-	http.HandleFunc("/transaction/update", middleware.RequireAuth(jwtSecret, updateTransactionHandler))
-	http.HandleFunc("/transaction/delete", middleware.RequireAuth(jwtSecret, deleteTransactionHandler))
-	http.HandleFunc("/summary/totals", middleware.RequireAuth(jwtSecret, summaryTotalsHandler))
-	http.HandleFunc("/summary/monthly", middleware.RequireAuth(jwtSecret, summaryMonthlyHandler))
-	http.HandleFunc("/summary/category", middleware.RequireAuth(jwtSecret, summaryCategoryHandler))
-	http.HandleFunc("/summary/group", middleware.RequireAuth(jwtSecret, summaryGroupHandler))
-	http.HandleFunc("/summary/category/monthly", middleware.RequireAuth(jwtSecret, summaryCategoryMonthHandler))
-	http.HandleFunc("/export", middleware.RequireAuth(jwtSecret, exportTransactionsHandler))
-	http.HandleFunc("/recurring/add", middleware.RequireAuth(jwtSecret, addRecurringHandler))
-	http.HandleFunc("/recurring/list", middleware.RequireAuth(jwtSecret, listRecurringHandler))
-	http.HandleFunc("/recurring/edit", middleware.RequireAuth(jwtSecret, editRecurringHandler))
-	http.HandleFunc("/recurring/delete", middleware.RequireAuth(jwtSecret, deleteRecurringHandler))
-	http.HandleFunc("/transactions/search", middleware.RequireAuth(jwtSecret, searchAndFilterTransactionsHandler))
+	mux.HandleFunc("/category/add", middleware.RequireAuth(jwtSecret, addCategoryHandler))
+	mux.HandleFunc("/category/list", middleware.RequireAuth(jwtSecret, listCategoryHandler))
+	mux.HandleFunc("/transaction/add", middleware.RequireAuth(jwtSecret, addTransactionHandler))
+	mux.HandleFunc("/transaction/list", middleware.RequireAuth(jwtSecret, listTransactionHandler))
+	mux.HandleFunc("/transaction/update", middleware.RequireAuth(jwtSecret, updateTransactionHandler))
+	mux.HandleFunc("/transaction/delete", middleware.RequireAuth(jwtSecret, deleteTransactionHandler))
+	mux.HandleFunc("/summary/totals", middleware.RequireAuth(jwtSecret, summaryTotalsHandler))
+	mux.HandleFunc("/summary/monthly", middleware.RequireAuth(jwtSecret, summaryMonthlyHandler))
+	mux.HandleFunc("/summary/category", middleware.RequireAuth(jwtSecret, summaryCategoryHandler))
+	mux.HandleFunc("/summary/group", middleware.RequireAuth(jwtSecret, summaryGroupHandler))
+	mux.HandleFunc("/summary/category/monthly", middleware.RequireAuth(jwtSecret, summaryCategoryMonthHandler))
+	mux.HandleFunc("/export", middleware.RequireAuth(jwtSecret, exportTransactionsHandler))
+	mux.HandleFunc("/recurring/add", middleware.RequireAuth(jwtSecret, addRecurringHandler))
+	mux.HandleFunc("/recurring/list", middleware.RequireAuth(jwtSecret, listRecurringHandler))
+	mux.HandleFunc("/recurring/edit", middleware.RequireAuth(jwtSecret, editRecurringHandler))
+	mux.HandleFunc("/recurring/delete", middleware.RequireAuth(jwtSecret, deleteRecurringHandler))
+	mux.HandleFunc("/transactions/search", middleware.RequireAuth(jwtSecret, searchAndFilterTransactionsHandler))
+
+	corsHandler := cors.New(cors.Options{
+		AllowedOrigins:   []string{"http://localhost:3000"},
+		AllowedHeaders:   []string{"Authorization", "Content-Type"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowCredentials: true,
+	})
 
 	fmt.Println("Server running at http://localhost:8080")
-	http.ListenAndServe(":8080", nil)
+	http.ListenAndServe(":8080", corsHandler.Handler(mux))
 }
 
 // Builds the PostgreSQL connection URL from environment variables for use with sql.Open
@@ -88,7 +99,12 @@ func getDBConnURL() string {
 // Handles user registration via POST request (expects 'username', 'email', 'password')
 func registerHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "Only POST allowed", http.StatusMethodNotAllowed)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Only POST allowed",
+		})
 		return
 	}
 
@@ -96,43 +112,87 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 	email := strings.TrimSpace(r.FormValue("email"))
 	password := r.FormValue("password")
 
-	// Basic validation
 	if username == "" {
-		http.Error(w, "Username is required", http.StatusBadRequest)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Username is required",
+		})
 		return
 	}
 	if email == "" {
-		http.Error(w, "Email is required", http.StatusBadRequest)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Email is required",
+		})
 		return
 	}
 	parts := strings.Split(email, "@")
 	if len(parts) != 2 || !strings.Contains(parts[1], ".") {
-		http.Error(w, "Invalid email format", http.StatusBadRequest)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Invalid email format",
+		})
 		return
 	}
 	if _, err := mail.ParseAddress(email); err != nil {
-		http.Error(w, "Invalid email format", http.StatusBadRequest)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Invalid email format",
+		})
 		return
 	}
 	if len(password) < 4 {
-		http.Error(w, "Password must be at least 4 characters", http.StatusBadRequest)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Password must be at least 4 characters",
+		})
 		return
 	}
 
 	err := handlers.RegisterUser(db, username, email, password)
-	if err != nil {
-		http.Error(w, "Registration failed: "+err.Error(), http.StatusInternalServerError)
+	w.Header().Set("Content-Type", "application/json")
+
+	switch err {
+	case nil:
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]interface{}{"success": true, "message": "User registered successfully!"})
+		return
+	case handlers.ErrEmailExists:
+		w.WriteHeader(http.StatusConflict)
+		json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "error": "This email is already registered."})
+		return
+	case handlers.ErrUsernameExists:
+		w.WriteHeader(http.StatusConflict)
+		json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "error": "This username is already taken."})
+		return
+	default:
+		log.Printf("Registration error: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "error": "Registration failed. Please try again later."})
 		return
 	}
-
-	w.Write([]byte("User registered successfully!"))
 }
 
 // Handles user login via POST request (expects 'email', 'password')
 // Returns a JWT token if credentials are valid
 func loginHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "Only POST allowed", http.StatusMethodNotAllowed)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Only POST allowed",
+		})
 		return
 	}
 
@@ -140,17 +200,33 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	password := r.FormValue("password")
 
 	if email == "" || password == "" {
-		http.Error(w, "Email and password are required", http.StatusBadRequest)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Email and password are required",
+		})
 		return
 	}
 
 	token, err := handlers.LoginUser(db, email, password, jwtSecret)
-	if err != nil {
-		http.Error(w, "Login failed: "+err.Error(), http.StatusUnauthorized)
+	w.Header().Set("Content-Type", "application/json")
+
+	switch err {
+	case nil:
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]interface{}{"success": true, "token": token})
+		return
+	case handlers.ErrUserNotFound, handlers.ErrInvalidCredentials:
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "error": "Email or password is incorrect."})
+		return
+	default:
+		log.Printf("Registration error: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "error": "Login failed. Please try again later."})
 		return
 	}
-
-	w.Write([]byte(token))
 }
 
 // Handles category creation for a user (expects 'user_id', 'name', 'type' in POST form)
