@@ -2,12 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-    fetchTransactions,
-    addTransaction,
-    updateTransaction,
-    deleteTransaction
-} from '../../lib/api';
 
 interface Transaction {
     id: number;
@@ -17,210 +11,362 @@ interface Transaction {
     date: string;
 }
 
-function defaultTx(): Omit<Transaction, 'id'> {
-    return { category_id: 1, amount: 0, description: '', date: '' };
+interface Category {
+    id: number;
+    name: string;
+    type: 'income' | 'expense';
 }
 
 export default function Dashboard() {
     const router = useRouter();
+
+    // Auth & data state
     const [token, setToken] = useState<string | null>(null);
-
     const [transactions, setTransactions] = useState<Transaction[]>([]);
-    const [error, setError] = useState<string | null>(null);
+    const [categories, setCategories] = useState<Category[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
-    // Add/Edit modal state
-    const [showModal, setShowModal] = useState(false);
-    const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
-    const [form, setForm] = useState<any>(defaultTx());
-    const [editingId, setEditingId] = useState<number | null>(null);
+    // Modal/Form state
+    const [modalOpen, setModalOpen] = useState(false);
+    const [editingTx, setEditingTx] = useState<Transaction | null>(null);
+    const [form, setForm] = useState({
+        category_id: 0,
+        amount: '',
+        description: '',
+        date: '', // YYYY-MM-DD format
+    });
+    const [submitting, setSubmitting] = useState(false);
 
+    // --- Effect: Check auth and fetch data ---
     useEffect(() => {
-        const t = localStorage.getItem('jwt_token');
-        if (!t) {
+        const storedToken = localStorage.getItem('jwt_token');
+        if (!storedToken) {
             router.push('/login');
             return;
         }
-        setToken(t);
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/transaction/list`, {
-            headers: { Authorization: `Bearer ${t}` }
-        })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) setTransactions(data.transactions);
-                else setError(data.error || "Failed to load transactions.");
-            })
-            .catch(e => setError(e.message))
-            .finally(() => setLoading(false));
+        setToken(storedToken);
+
+        async function fetchData() {
+            setLoading(true);
+            setError(null);
+            try {
+                // Fetch categories
+                const catRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/category/list`, {
+                    headers: { Authorization: `Bearer ${storedToken}` },
+                });
+                const catData = await catRes.json();
+                if (!catData.success) throw new Error(catData.error || 'Failed to load categories');
+                setCategories(catData.categories);
+
+                // Fetch transactions
+                const txRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/transaction/list`, {
+                    headers: { Authorization: `Bearer ${storedToken}` },
+                });
+                const txData = await txRes.json();
+                if (!txData.success) throw new Error(txData.error || 'Failed to load transactions');
+                setTransactions(txData.transactions);
+            } catch (err: any) {
+                setError(err.message);
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        fetchData();
     }, [router]);
 
-
-    // Modal open handlers
-    function startAdd() {
-        setModalMode('add');
-        setForm(defaultTx());
-        setEditingId(null);
-        setShowModal(true);
-        setError(null);
-    }
-    function startEdit(tx: Transaction) {
-        setModalMode('edit');
-        setForm({ ...tx });
-        setEditingId(tx.id);
-        setShowModal(true);
+    // --- Helpers ---
+    function openAddModal() {
+        setEditingTx(null);
+        setForm({
+            category_id: categories.length > 0 ? categories[0].id : 0,
+            amount: '',
+            description: '',
+            date: new Date().toISOString().slice(0, 10), // today yyyy-mm-dd
+        });
+        setModalOpen(true);
         setError(null);
     }
 
-    async function handleDelete(id: number) {
-        if (!token) return;
-        if (!window.confirm("Are you sure you want to delete this transaction?")) return;
-        try {
-            await deleteTransaction(token, id);
-            setTransactions((prev) => prev.filter((tx) => tx.id !== id));
-        } catch (e: any) {
-            setError(e.message);
-        }
+    function openEditModal(tx: Transaction) {
+        setEditingTx(tx);
+        setForm({
+            category_id: tx.category_id,
+            amount: tx.amount.toString(),
+            description: tx.description,
+            date: tx.date.slice(0, 10),
+        });
+        setModalOpen(true);
+        setError(null);
+    }
+
+    function closeModal() {
+        setModalOpen(false);
+        setError(null);
+        setSubmitting(false);
     }
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
         if (!token) return;
+        setSubmitting(true);
         setError(null);
 
+        // Validate form
+        const { category_id, amount, description, date } = form;
+        if (!category_id) {
+            setError('Please select a category');
+            setSubmitting(false);
+            return;
+        }
+        if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
+            setError('Enter a valid amount greater than zero');
+            setSubmitting(false);
+            return;
+        }
+        if (!date) {
+            setError('Please select a date');
+            setSubmitting(false);
+            return;
+        }
+
         try {
-            if (modalMode === 'add') {
-                await addTransaction(token, form);
-            } else if (modalMode === 'edit' && editingId != null) {
-                await updateTransaction(token, { ...form, id: editingId });
+            const formData = new FormData();
+            formData.append('category_id', String(category_id));
+            formData.append('amount', amount);
+            formData.append('description', description);
+            formData.append('date', date);
+
+            const url = editingTx
+                ? `${process.env.NEXT_PUBLIC_API_URL}/transaction/update`
+                : `${process.env.NEXT_PUBLIC_API_URL}/transaction/add`;
+
+            if (editingTx) {
+                formData.append('id', String(editingTx.id));
             }
-            // Refresh list:
-            const txs = await fetchTransactions(token);
-            setTransactions(txs);
-            setShowModal(false);
-        } catch (e: any) {
-            setError(e.message);
+
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${token}` },
+                body: formData,
+            });
+
+            const data = await res.json();
+            if (!data.success) {
+                throw new Error(data.error || 'Failed to save transaction');
+            }
+
+            // Refresh transactions after add/edit
+            const txRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/transaction/list`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            const txData = await txRes.json();
+            if (!txData.success) throw new Error(txData.error || 'Failed to load transactions');
+            setTransactions(txData.transactions);
+
+            closeModal();
+        } catch (err: any) {
+            setError(err.message);
+            setSubmitting(false);
         }
     }
 
-    if (loading) return <div className="p-4 text-center">Loading transactions...</div>;
+    async function handleDelete(id: number) {
+        if (!token) return;
+        if (!window.confirm('Are you sure you want to delete this transaction?')) return;
+        setError(null);
+
+        try {
+            const formData = new FormData();
+            formData.append('id', String(id));
+
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/transaction/delete`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${token}` },
+                body: formData,
+            });
+
+            const data = await res.json();
+            if (!data.success) throw new Error(data.error || 'Failed to delete transaction');
+
+            setTransactions(transactions.filter(tx => tx.id !== id));
+        } catch (err: any) {
+            setError(err.message);
+        }
+    }
+
+    if (loading) return <div className="p-4 text-center">Loading...</div>;
+
+    if (error)
+        return (
+            <div className="p-4 text-center text-red-600 font-semibold">
+                Error: {error}
+            </div>
+        );
 
     return (
-        <div className="max-w-5xl mx-auto p-6">
-            <h1 className="text-2xl font-bold mb-6 text-center">Dashboard</h1>
-            {error && <div className="bg-red-100 border border-red-400 text-red-800 rounded p-2 mb-4">{error}</div>}
+        <div className="max-w-6xl mx-auto p-6">
+            <h1 className="text-3xl font-bold mb-6 text-center">Dashboard</h1>
+
             <div className="flex justify-end mb-4">
                 <button
-                    onClick={startAdd}
-                    className="bg-indigo-600 text-white px-4 py-2 rounded font-semibold hover:bg-indigo-700 shadow"
+                    onClick={openAddModal}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded font-semibold"
                 >
                     + Add Transaction
                 </button>
             </div>
-            <table className="w-full border-collapse border border-gray-300 shadow-sm rounded-lg overflow-hidden text-sm">
-                <thead>
-                    <tr className="bg-gray-100">
-                        <th className="p-2 border border-gray-300">Date</th>
-                        <th className="p-2 border border-gray-300">Description</th>
-                        <th className="p-2 border border-gray-300">Amount</th>
-                        <th className="p-2 border border-gray-300">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {transactions.length === 0 && (
+
+            {transactions.length === 0 ? (
+                <p className="text-center text-gray-600">No transactions found.</p>
+            ) : (
+                <table className="w-full border-collapse border border-gray-300 rounded-lg shadow-sm overflow-hidden text-sm">
+                    <thead className="bg-gray-100">
                         <tr>
-                            <td colSpan={4} className="p-4 text-center text-gray-500">
-                                No transactions found.
-                            </td>
+                            <th className="p-3 border border-gray-300 text-left">Date</th>
+                            <th className="p-3 border border-gray-300 text-left">Description</th>
+                            <th className="p-3 border border-gray-300 text-left">Category</th>
+                            <th className="p-3 border border-gray-300 text-right">Amount</th>
+                            <th className="p-3 border border-gray-300 text-center">Actions</th>
                         </tr>
-                    )}
-                    {transactions.map((tx) => (
-                        <tr key={tx.id} className="hover:bg-gray-50 transition">
-                            <td className="p-2 border">{new Date(tx.date).toLocaleDateString()}</td>
-                            <td className="p-2 border">{tx.description}</td>
-                            <td className="p-2 border text-right">${tx.amount?.toFixed(2)}</td>
-                            <td className="p-2 border text-center">
-                                <button
-                                    onClick={() => startEdit(tx)}
-                                    className="text-blue-600 font-semibold hover:underline mr-4"
+                    </thead>
+                    <tbody>
+                        {transactions.map(tx => {
+                            const category = categories.find(c => c.id === tx.category_id);
+                            return (
+                                <tr
+                                    key={tx.id}
+                                    className="hover:bg-gray-50 transition-colors duration-150"
                                 >
-                                    Edit
-                                </button>
-                                <button
-                                    onClick={() => handleDelete(tx.id)}
-                                    className="text-red-600 font-semibold hover:underline"
-                                >
-                                    Delete
-                                </button>
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-            {/* Modal for add/edit transaction */}
-            {showModal && (
-                <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+                                    <td className="p-3 border border-gray-300">
+                                        {new Date(tx.date).toLocaleDateString()}
+                                    </td>
+                                    <td className="p-3 border border-gray-300">{tx.description}</td>
+                                    <td className="p-3 border border-gray-300">
+                                        {category ? category.name : 'Unknown'}
+                                    </td>
+                                    <td className="p-3 border border-gray-300 text-right">
+                                        ${tx.amount.toFixed(2)}
+                                    </td>
+                                    <td className="p-3 border border-gray-300 text-center space-x-2">
+                                        <button
+                                            onClick={() => openEditModal(tx)}
+                                            className="text-blue-600 hover:underline"
+                                            title="Edit"
+                                        >
+                                            Edit
+                                        </button>
+                                        <button
+                                            onClick={() => handleDelete(tx.id)}
+                                            className="text-red-600 hover:underline"
+                                            title="Delete"
+                                        >
+                                            Delete
+                                        </button>
+                                    </td>
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                </table>
+            )}
+
+            {/* Modal */}
+            {modalOpen && (
+                <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
                     <form
-                        className="bg-white p-8 rounded-lg shadow max-w-xs w-full space-y-4"
                         onSubmit={handleSubmit}
+                        className="bg-white rounded-lg shadow-lg p-6 max-w-md w-full space-y-4"
                     >
-                        <h2 className="font-bold mb-4">
-                            {modalMode === 'add' ? 'Add Transaction' : 'Edit Transaction'}
+                        <h2 className="text-xl font-bold">
+                            {editingTx ? 'Edit Transaction' : 'Add Transaction'}
                         </h2>
+
                         <div>
-                            <label className="block text-sm mb-1">Category ID</label>
-                            <input
-                                type="number"
+                            <label htmlFor="category" className="block font-medium mb-1">
+                                Category
+                            </label>
+                            <select
+                                id="category"
                                 value={form.category_id}
-                                min={1}
-                                className="px-3 py-2 border rounded w-full"
-                                onChange={e => setForm({ ...form, category_id: Number(e.target.value) })}
-                            />
+                                onChange={e =>
+                                    setForm({ ...form, category_id: Number(e.target.value) })
+                                }
+                                className="w-full border border-gray-300 rounded px-3 py-2"
+                            >
+                                {categories.map(cat => (
+                                    <option key={cat.id} value={cat.id}>
+                                        {cat.name} ({cat.type})
+                                    </option>
+                                ))}
+                            </select>
                         </div>
+
                         <div>
-                            <label className="block text-sm mb-1">Amount</label>
+                            <label htmlFor="amount" className="block font-medium mb-1">
+                                Amount
+                            </label>
                             <input
                                 type="number"
+                                id="amount"
+                                step="0.01"
+                                min="0"
                                 value={form.amount}
-                                min={0.01}
-                                step={0.01}
-                                className="px-3 py-2 border rounded w-full"
-                                onChange={e => setForm({ ...form, amount: Number(e.target.value) })}
+                                onChange={e => setForm({ ...form, amount: e.target.value })}
+                                className="w-full border border-gray-300 rounded px-3 py-2"
+                                required
                             />
                         </div>
+
                         <div>
-                            <label className="block text-sm mb-1">Description</label>
+                            <label htmlFor="description" className="block font-medium mb-1">
+                                Description
+                            </label>
                             <input
                                 type="text"
+                                id="description"
                                 value={form.description}
-                                className="px-3 py-2 border rounded w-full"
                                 onChange={e => setForm({ ...form, description: e.target.value })}
+                                className="w-full border border-gray-300 rounded px-3 py-2"
                             />
                         </div>
+
                         <div>
-                            <label className="block text-sm mb-1">Date</label>
+                            <label htmlFor="date" className="block font-medium mb-1">
+                                Date
+                            </label>
                             <input
                                 type="date"
+                                id="date"
                                 value={form.date}
-                                className="px-3 py-2 border rounded w-full"
                                 onChange={e => setForm({ ...form, date: e.target.value })}
+                                className="w-full border border-gray-300 rounded px-3 py-2"
+                                required
                             />
                         </div>
-                        <div className="flex justify-between gap-2 mt-6">
-                            <button
-                                type="submit"
-                                className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700"
-                            >
-                                {modalMode === 'add' ? 'Add' : 'Update'}
-                            </button>
+
+                        <div className="flex justify-end space-x-2 mt-4">
                             <button
                                 type="button"
-                                className="bg-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-400"
-                                onClick={() => setShowModal(false)}
+                                onClick={closeModal}
+                                className="px-4 py-2 rounded border border-gray-300 hover:bg-gray-100"
+                                disabled={submitting}
                             >
                                 Cancel
                             </button>
+                            <button
+                                type="submit"
+                                disabled={submitting}
+                                className="px-4 py-2 rounded bg-indigo-600 text-white font-semibold hover:bg-indigo-700 disabled:opacity-50"
+                            >
+                                {submitting
+                                    ? editingTx ? 'Updating...' : 'Adding...'
+                                    : editingTx ? 'Update' : 'Add'}
+                            </button>
                         </div>
-                        {!!error && <div className="text-red-500 text-sm mt-2">{error}</div>}
+
+                        {error && <p className="text-red-600 mt-2">{error}</p>}
                     </form>
                 </div>
             )}
