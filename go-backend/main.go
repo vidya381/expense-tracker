@@ -284,31 +284,53 @@ func listCategoryHandler(w http.ResponseWriter, r *http.Request) {
 
 // Add a new transaction via POST
 func addTransactionHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
 	if r.Method != http.MethodPost {
-		http.Error(w, "Only POST allowed", http.StatusMethodNotAllowed)
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Only POST allowed",
+		})
 		return
 	}
 
 	userID, ok := middleware.GetUserID(r)
 	if !ok {
-		http.Error(w, "User not found in context", http.StatusUnauthorized)
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "User not authenticated",
+		})
 		return
 	}
 
 	categoryID, err := strconv.Atoi(r.FormValue("category_id"))
 	if err != nil || categoryID <= 0 {
-		http.Error(w, "Valid category_id is required", http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Valid category_id is required",
+		})
 		return
 	}
 	amount, err := strconv.ParseFloat(r.FormValue("amount"), 64)
 	if err != nil || amount <= 0 {
-		http.Error(w, "Amount must be a number greater than zero", http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Amount must be a number greater than zero",
+		})
 		return
 	}
 	description := strings.TrimSpace(r.FormValue("description"))
 	date := r.FormValue("date")
 	if date == "" {
-		http.Error(w, "Transaction date is required", http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Transaction date is required",
+		})
 		return
 	}
 
@@ -322,62 +344,115 @@ func addTransactionHandler(w http.ResponseWriter, r *http.Request) {
 
 	err = handlers.AddTransaction(db, tx)
 	if err != nil {
-		http.Error(w, "Error adding transaction: "+err.Error(), http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Error adding transaction: " + err.Error(),
+		})
 		return
 	}
-	w.Write([]byte("Transaction added successfully"))
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "Transaction added successfully",
+	})
 }
 
 // List all transactions for a user (GET)
 func listTransactionHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
 	if r.Method != http.MethodGet {
-		http.Error(w, "Only GET allowed", http.StatusMethodNotAllowed)
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Only GET allowed",
+		})
 		return
 	}
 	userID, ok := middleware.GetUserID(r)
 	if !ok {
-		http.Error(w, "User not found in context", http.StatusUnauthorized)
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "User not authenticated",
+		})
 		return
 	}
 	list, err := handlers.ListTransactions(db, userID)
 	if err != nil {
-		http.Error(w, "Failed to fetch transactions: "+err.Error(), http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Failed to fetch transactions: " + err.Error(),
+		})
 		return
 	}
-	json.NewEncoder(w).Encode(list)
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success":      true,
+		"transactions": list,
+	})
 }
 
 // Update an existing transaction (POST)
 func updateTransactionHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
 	if r.Method != http.MethodPost {
-		http.Error(w, "Only POST allowed", http.StatusMethodNotAllowed)
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Only POST allowed",
+		})
 		return
 	}
 	userID, ok := middleware.GetUserID(r)
 	if !ok {
-		http.Error(w, "User not found in context", http.StatusUnauthorized)
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "User not found in context",
+		})
 		return
 	}
 
 	id, err := strconv.Atoi(r.FormValue("id"))
 	if err != nil || id <= 0 {
-		http.Error(w, "Valid transaction ID is required", http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Valid transaction ID is required",
+		})
 		return
 	}
 	categoryID, err := strconv.Atoi(r.FormValue("category_id"))
 	if err != nil || categoryID <= 0 {
-		http.Error(w, "Valid category_id is required", http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Valid category_id is required",
+		})
 		return
 	}
 	amount, err := strconv.ParseFloat(r.FormValue("amount"), 64)
 	if err != nil || amount <= 0 {
-		http.Error(w, "Amount must be a number greater than zero", http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Amount must be a number greater than zero",
+		})
 		return
 	}
 	description := strings.TrimSpace(r.FormValue("description"))
 	date := r.FormValue("date")
 	if date == "" {
-		http.Error(w, "Transaction date is required", http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Transaction date is required",
+		})
 		return
 	}
 
@@ -392,36 +467,68 @@ func updateTransactionHandler(w http.ResponseWriter, r *http.Request) {
 
 	err = handlers.UpdateTransaction(db, tx)
 	if err != nil {
-		http.Error(w, "Error updating transaction: "+err.Error(), http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Error updating transaction: " + err.Error(),
+		})
 		return
 	}
-	w.Write([]byte("Transaction updated successfully"))
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "Transaction updated successfully",
+	})
 }
 
 // Delete a transaction (POST)
 func deleteTransactionHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
 	if r.Method != http.MethodPost {
-		http.Error(w, "Only POST allowed", http.StatusMethodNotAllowed)
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Only POST allowed",
+		})
 		return
 	}
 	userID, ok := middleware.GetUserID(r)
 	if !ok {
-		http.Error(w, "User not found in context", http.StatusUnauthorized)
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "User not found in context",
+		})
 		return
 	}
 
 	id, err := strconv.Atoi(r.FormValue("id"))
 	if err != nil || id <= 0 {
-		http.Error(w, "Valid transaction ID is required", http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Valid transaction ID is required",
+		})
 		return
 	}
 
 	err = handlers.DeleteTransaction(db, id, userID)
 	if err != nil {
-		http.Error(w, "Failed to delete transaction: "+err.Error(), http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Failed to delete transaction: " + err.Error(),
+		})
 		return
 	}
-	w.Write([]byte("Transaction deleted"))
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "Transaction deleted",
+	})
 }
 
 // Returns overall totals for this user
