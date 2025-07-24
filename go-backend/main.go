@@ -231,14 +231,24 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 
 // Handles category creation for a user (expects 'user_id', 'name', 'type' in POST form)
 func addCategoryHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
 	if r.Method != http.MethodPost {
-		http.Error(w, "Only POST allowed", http.StatusMethodNotAllowed)
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Only POST allowed",
+		})
 		return
 	}
 
 	userID, ok := middleware.GetUserID(r)
 	if !ok {
-		http.Error(w, "User not found in context", http.StatusUnauthorized)
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "User not authenticated",
+		})
 		return
 	}
 
@@ -246,40 +256,77 @@ func addCategoryHandler(w http.ResponseWriter, r *http.Request) {
 	ctype := strings.ToLower(strings.TrimSpace(r.FormValue("type")))
 
 	if name == "" {
-		http.Error(w, "Category name is required", http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Category name is required",
+		})
 		return
 	}
 	if ctype != "expense" && ctype != "income" {
-		http.Error(w, "Category type must be 'expense' or 'income'", http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Category type must be 'expense' or 'income'",
+		})
 		return
 	}
 
 	err := handlers.AddCategory(db, userID, name, ctype)
 	if err != nil {
-		http.Error(w, "Add category failed: "+err.Error(), http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Add category failed: " + err.Error(),
+		})
 		return
 	}
-	w.Write([]byte("Category added successfully"))
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "Category added successfully",
+	})
 }
 
 // Handles listing all categories for a user (expects 'user_id' as a URL query parameter)
 func listCategoryHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
 	if r.Method != http.MethodGet {
-		http.Error(w, "Only GET allowed", http.StatusMethodNotAllowed)
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Only GET allowed",
+		})
 		return
 	}
 
 	userID, ok := middleware.GetUserID(r)
 	if !ok {
-		http.Error(w, "User not found in context", http.StatusUnauthorized)
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "User not authenticated",
+		})
 		return
 	}
+
 	cats, err := handlers.ListCategories(db, userID)
 	if err != nil {
-		http.Error(w, "Error: "+err.Error(), http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Failed to list categories: " + err.Error(),
+		})
 		return
 	}
-	json.NewEncoder(w).Encode(cats)
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success":    true,
+		"categories": cats,
+	})
 }
 
 // Add a new transaction via POST
