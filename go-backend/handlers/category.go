@@ -9,7 +9,7 @@ import (
 )
 
 // AddCategory inserts a new category for the user
-func AddCategory(db *sql.DB, userID int, name, ctype string) error {
+func AddCategory(db *sql.DB, userID int, name, ctype string) (int, error) {
 	// Check if category already exists for this user/type
 	var exists int
 	err := db.QueryRowContext(
@@ -17,16 +17,22 @@ func AddCategory(db *sql.DB, userID int, name, ctype string) error {
 		"SELECT 1 FROM categories WHERE user_id=$1 AND name=$2 AND type=$3",
 		userID, name, ctype).Scan(&exists)
 	if err == nil {
-		return fmt.Errorf("category '%s' (type: %s) already exists for this user", name, ctype)
+		return 0, fmt.Errorf("category '%s' (type: %s) already exists for this user", name, ctype)
 	} else if err != sql.ErrNoRows {
-		return err
+		return 0, err
 	}
 
-	// Insert category because it doesn't exist
-	_, err = db.ExecContext(context.Background(),
-		"INSERT INTO categories (user_id, name, type) VALUES ($1, $2, $3)",
-		userID, name, ctype)
-	return err
+	// Insert category and get the returning ID
+	var categoryID int
+	err = db.QueryRowContext(
+		context.Background(),
+		"INSERT INTO categories (user_id, name, type) VALUES ($1, $2, $3) RETURNING id",
+		userID, name, ctype).Scan(&categoryID)
+	if err != nil {
+		return 0, err
+	}
+
+	return categoryID, nil
 }
 
 // ListCategories fetches all categories for the user
