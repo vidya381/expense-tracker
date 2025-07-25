@@ -7,6 +7,7 @@ import React, {
     useEffect,
     ReactNode,
 } from 'react';
+import { useRouter } from 'next/navigation';
 
 interface AuthContextType {
     token: string | null;
@@ -18,6 +19,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
     const [token, setToken] = useState<string | null>(null);
+    const router = useRouter();
 
     // Load token from localStorage on mount
     useEffect(() => {
@@ -46,6 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     function logout() {
         setToken(null);
         localStorage.removeItem('jwt_token');
+        router.push('/login');  // Redirect after logout
     }
 
     return (
