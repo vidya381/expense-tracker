@@ -229,7 +229,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Handles category creation for a user (expects 'user_id', 'name', 'type' in POST form)
+// AddCategoryHandler creates a category for an authenticated user.
 func addCategoryHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
@@ -272,7 +272,7 @@ func addCategoryHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := handlers.AddCategory(db, userID, name, ctype)
+	categoryID, err := handlers.AddCategory(db, userID, name, ctype)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]interface{}{
@@ -282,10 +282,17 @@ func addCategoryHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Return JSON of the newly created category
+	newCategory := map[string]interface{}{
+		"id":   categoryID,
+		"name": name,
+		"type": ctype,
+	}
+
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"success": true,
-		"message": "Category added successfully",
+		"success":  true,
+		"category": newCategory,
 	})
 }
 

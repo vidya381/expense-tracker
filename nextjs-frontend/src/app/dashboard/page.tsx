@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import TransactionForm from '../../components/TransactionForm';
 
 interface Transaction {
     id: number;
@@ -17,28 +18,17 @@ interface Category {
     type: 'income' | 'expense';
 }
 
-export default function Dashboard() {
+export default function DashboardPage() {
     const router = useRouter();
-
-    // Auth & data state
     const [token, setToken] = useState<string | null>(null);
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    // Modal/Form state
     const [modalOpen, setModalOpen] = useState(false);
     const [editingTx, setEditingTx] = useState<Transaction | null>(null);
-    const [form, setForm] = useState({
-        category_id: 0,
-        amount: '',
-        description: '',
-        date: '', // YYYY-MM-DD format
-    });
-    const [submitting, setSubmitting] = useState(false);
 
-    // --- Effect: Check auth and fetch data ---
     useEffect(() => {
         const storedToken = localStorage.getItem('jwt_token');
         if (!storedToken) {
@@ -76,99 +66,34 @@ export default function Dashboard() {
         fetchData();
     }, [router]);
 
-    // --- Helpers ---
     function openAddModal() {
         setEditingTx(null);
-        setForm({
-            category_id: categories.length > 0 ? categories[0].id : 0,
-            amount: '',
-            description: '',
-            date: new Date().toISOString().slice(0, 10), // today yyyy-mm-dd
-        });
         setModalOpen(true);
-        setError(null);
     }
 
     function openEditModal(tx: Transaction) {
         setEditingTx(tx);
-        setForm({
-            category_id: tx.category_id,
-            amount: tx.amount.toString(),
-            description: tx.description,
-            date: tx.date.slice(0, 10),
-        });
         setModalOpen(true);
-        setError(null);
     }
 
     function closeModal() {
         setModalOpen(false);
-        setError(null);
-        setSubmitting(false);
     }
 
-    async function handleSubmit(e: React.FormEvent) {
-        e.preventDefault();
+    async function refreshTransactions() {
         if (!token) return;
-        setSubmitting(true);
-        setError(null);
-
-        // Validate form
-        const { category_id, amount, description, date } = form;
-        if (!category_id) {
-            setError('Please select a category');
-            setSubmitting(false);
-            return;
-        }
-        if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
-            setError('Enter a valid amount greater than zero');
-            setSubmitting(false);
-            return;
-        }
-        if (!date) {
-            setError('Please select a date');
-            setSubmitting(false);
-            return;
-        }
-
         try {
-            const formData = new FormData();
-            formData.append('category_id', String(category_id));
-            formData.append('amount', amount);
-            formData.append('description', description);
-            formData.append('date', date);
-
-            const url = editingTx
-                ? `${process.env.NEXT_PUBLIC_API_URL}/transaction/update`
-                : `${process.env.NEXT_PUBLIC_API_URL}/transaction/add`;
-
-            if (editingTx) {
-                formData.append('id', String(editingTx.id));
-            }
-
-            const res = await fetch(url, {
-                method: 'POST',
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/transaction/list`, {
                 headers: { Authorization: `Bearer ${token}` },
-                body: formData,
             });
-
             const data = await res.json();
-            if (!data.success) {
-                throw new Error(data.error || 'Failed to save transaction');
+            if (data.success) {
+                setTransactions(data.transactions);
+            } else {
+                setError(data.error || 'Failed to reload transactions');
             }
-
-            // Refresh transactions after add/edit
-            const txRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/transaction/list`, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
-            const txData = await txRes.json();
-            if (!txData.success) throw new Error(txData.error || 'Failed to load transactions');
-            setTransactions(txData.transactions);
-
-            closeModal();
         } catch (err: any) {
             setError(err.message);
-            setSubmitting(false);
         }
     }
 
@@ -176,7 +101,6 @@ export default function Dashboard() {
         if (!token) return;
         if (!window.confirm('Are you sure you want to delete this transaction?')) return;
         setError(null);
-
         try {
             const formData = new FormData();
             formData.append('id', String(id));
@@ -186,7 +110,6 @@ export default function Dashboard() {
                 headers: { Authorization: `Bearer ${token}` },
                 body: formData,
             });
-
             const data = await res.json();
             if (!data.success) throw new Error(data.error || 'Failed to delete transaction');
 
@@ -272,102 +195,34 @@ export default function Dashboard() {
                 </table>
             )}
 
-            {/* Modal */}
             {modalOpen && (
-                <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-                    <form
-                        onSubmit={handleSubmit}
-                        className="bg-white rounded-lg shadow-lg p-6 max-w-md w-full space-y-4"
-                    >
-                        <h2 className="text-xl font-bold">
-                            {editingTx ? 'Edit Transaction' : 'Add Transaction'}
-                        </h2>
-
-                        <div>
-                            <label htmlFor="category" className="block font-medium mb-1">
-                                Category
-                            </label>
-                            <select
-                                id="category"
-                                value={form.category_id}
-                                onChange={e =>
-                                    setForm({ ...form, category_id: Number(e.target.value) })
-                                }
-                                className="w-full border border-gray-300 rounded px-3 py-2"
-                            >
-                                {categories.map(cat => (
-                                    <option key={cat.id} value={cat.id}>
-                                        {cat.name} ({cat.type})
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-
-                        <div>
-                            <label htmlFor="amount" className="block font-medium mb-1">
-                                Amount
-                            </label>
-                            <input
-                                type="number"
-                                id="amount"
-                                step="0.01"
-                                min="0"
-                                value={form.amount}
-                                onChange={e => setForm({ ...form, amount: e.target.value })}
-                                className="w-full border border-gray-300 rounded px-3 py-2"
-                                required
-                            />
-                        </div>
-
-                        <div>
-                            <label htmlFor="description" className="block font-medium mb-1">
-                                Description
-                            </label>
-                            <input
-                                type="text"
-                                id="description"
-                                value={form.description}
-                                onChange={e => setForm({ ...form, description: e.target.value })}
-                                className="w-full border border-gray-300 rounded px-3 py-2"
-                            />
-                        </div>
-
-                        <div>
-                            <label htmlFor="date" className="block font-medium mb-1">
-                                Date
-                            </label>
-                            <input
-                                type="date"
-                                id="date"
-                                value={form.date}
-                                onChange={e => setForm({ ...form, date: e.target.value })}
-                                className="w-full border border-gray-300 rounded px-3 py-2"
-                                required
-                            />
-                        </div>
-
-                        <div className="flex justify-end space-x-2 mt-4">
-                            <button
-                                type="button"
-                                onClick={closeModal}
-                                className="px-4 py-2 rounded border border-gray-300 hover:bg-gray-100"
-                                disabled={submitting}
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type="submit"
-                                disabled={submitting}
-                                className="px-4 py-2 rounded bg-indigo-600 text-white font-semibold hover:bg-indigo-700 disabled:opacity-50"
-                            >
-                                {submitting
-                                    ? editingTx ? 'Updating...' : 'Adding...'
-                                    : editingTx ? 'Update' : 'Add'}
-                            </button>
-                        </div>
-
-                        {error && <p className="text-red-600 mt-2">{error}</p>}
-                    </form>
+                <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-lg shadow-lg p-6 max-w-md w-full overflow-auto max-h-[90vh]">
+                        <TransactionForm
+                            token={token!}
+                            categories={categories}
+                            setCategories={setCategories}
+                            onSuccess={() => {
+                                refreshTransactions();
+                                closeModal();
+                            }}
+                            onCancel={closeModal}
+                            initialValues={
+                                editingTx
+                                    ? {
+                                        id: editingTx.id,
+                                        category_id: editingTx.category_id,
+                                        category_name:
+                                            categories.find(c => c.id === editingTx.category_id)?.name ||
+                                            '',
+                                        amount: editingTx.amount,
+                                        description: editingTx.description,
+                                        date: editingTx.date.slice(0, 10),
+                                    }
+                                    : undefined
+                            }
+                        />
+                    </div>
                 </div>
             )}
         </div>
