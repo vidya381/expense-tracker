@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from '../../context/AuthContext';
 
 type ApiResponse = {
     success: boolean;
@@ -11,13 +12,14 @@ type ApiResponse = {
 
 export default function LoginPage() {
     const router = useRouter();
+    const { setToken } = useAuth();
+
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
 
     function validateEmailFormat(email: string): boolean {
-        // email format check
         return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
     }
 
@@ -25,7 +27,6 @@ export default function LoginPage() {
         event.preventDefault();
         setError(null);
 
-        // Frontend validation
         if (!email.trim()) {
             setError("Email is required");
             return;
@@ -60,8 +61,8 @@ export default function LoginPage() {
             }
 
             if (data.token) {
-                localStorage.setItem("jwt_token", data.token);
-                router.push("/"); // Redirect to home
+                setToken(data.token);
+                router.push('/dashboard'); // Redirect to dashboard
             } else {
                 setError("No token received from server");
                 setLoading(false);

@@ -20,8 +20,22 @@ func AddTransaction(db *sql.DB, tx models.Transaction) error {
 // Fetch all transactions for a user
 func ListTransactions(db *sql.DB, userID int) ([]models.Transaction, error) {
 	rows, err := db.QueryContext(context.Background(),
-		`SELECT id, user_id, category_id, amount, description, date, created_at
-		 FROM transactions WHERE user_id = $1 ORDER BY date DESC`, userID)
+		`
+        SELECT 
+            t.id,
+            t.user_id,
+            t.category_id,
+            c.name AS category_name,
+            t.amount,
+            t.description,
+            t.date,
+            t.created_at
+        FROM transactions t
+        JOIN categories c ON t.category_id = c.id
+        WHERE t.user_id = $1
+        ORDER BY t.date DESC
+        `, userID)
+
 	if err != nil {
 		return nil, err
 	}
@@ -30,8 +44,16 @@ func ListTransactions(db *sql.DB, userID int) ([]models.Transaction, error) {
 	var transactions []models.Transaction
 	for rows.Next() {
 		var tx models.Transaction
-		if err := rows.Scan(&tx.ID, &tx.UserID, &tx.CategoryID, &tx.Amount,
-			&tx.Description, &tx.Date, &tx.CreatedAt); err != nil {
+		if err := rows.Scan(
+			&tx.ID,
+			&tx.UserID,
+			&tx.CategoryID,
+			&tx.CategoryName,
+			&tx.Amount,
+			&tx.Description,
+			&tx.Date,
+			&tx.CreatedAt,
+		); err != nil {
 			return nil, err
 		}
 		transactions = append(transactions, tx)
@@ -71,48 +93,57 @@ func FilterTransactionsPaginated(
 	offset int,
 ) ([]models.Transaction, error) {
 
-	base := `SELECT id, user_id, category_id, amount, description, date, created_at
-	         FROM transactions WHERE user_id = $1`
+	base := `SELECT 
+                t.id, 
+                t.user_id, 
+                t.category_id, 
+                c.name AS category_name, 
+                t.amount, 
+                t.description, 
+                t.date, 
+                t.created_at 
+             FROM transactions t
+             JOIN categories c ON t.category_id = c.id
+             WHERE t.user_id = $1`
 	args := []interface{}{userID}
 	argpos := 2
 
 	if keyword != "" {
-		base += fmt.Sprintf(" AND description ILIKE $%d", argpos)
+		base += fmt.Sprintf(" AND t.description ILIKE $%d", argpos)
 		args = append(args, "%"+keyword+"%")
 		argpos++
 	}
 	if categoryID > 0 {
-		base += fmt.Sprintf(" AND category_id = $%d", argpos)
+		base += fmt.Sprintf(" AND t.category_id = $%d", argpos)
 		args = append(args, categoryID)
 		argpos++
 	}
 	if dateFrom != "" {
-		base += fmt.Sprintf(" AND date >= $%d", argpos)
+		base += fmt.Sprintf(" AND t.date >= $%d", argpos)
 		args = append(args, dateFrom)
 		argpos++
 	}
 	if dateTo != "" {
-		base += fmt.Sprintf(" AND date <= $%d", argpos)
+		base += fmt.Sprintf(" AND t.date <= $%d", argpos)
 		args = append(args, dateTo)
 		argpos++
 	}
 	if amountMin > 0 {
-		base += fmt.Sprintf(" AND amount >= $%d", argpos)
+		base += fmt.Sprintf(" AND t.amount >= $%d", argpos)
 		args = append(args, amountMin)
 		argpos++
 	}
 	if amountMax > 0 {
-		base += fmt.Sprintf(" AND amount <= $%d", argpos)
+		base += fmt.Sprintf(" AND t.amount <= $%d", argpos)
 		args = append(args, amountMax)
 		argpos++
 	}
 
 	if orderBy == "" {
-		orderBy = "date DESC"
+		orderBy = "t.date DESC"
 	}
 	base += " ORDER BY " + orderBy
 
-	// Add pagination
 	base += fmt.Sprintf(" LIMIT $%d OFFSET $%d", argpos, argpos+1)
 	args = append(args, limit, offset)
 
@@ -125,7 +156,16 @@ func FilterTransactionsPaginated(
 	var results []models.Transaction
 	for rows.Next() {
 		var t models.Transaction
-		if err := rows.Scan(&t.ID, &t.UserID, &t.CategoryID, &t.Amount, &t.Description, &t.Date, &t.CreatedAt); err != nil {
+		if err := rows.Scan(
+			&t.ID,
+			&t.UserID,
+			&t.CategoryID,
+			&t.CategoryName,
+			&t.Amount,
+			&t.Description,
+			&t.Date,
+			&t.CreatedAt,
+		); err != nil {
 			return nil, err
 		}
 		results = append(results, t)
