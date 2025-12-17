@@ -212,102 +212,187 @@ export default function TransactionForm({
     }
 
     return (
-        <form className="max-w-md mx-auto space-y-4" onSubmit={handleSubmit}>
-            <div>
-                <label htmlFor="category" className="block font-medium mb-1">Category</label>
-                <input
-                    list="categorylist"
-                    id="category"
-                    value={categoryInput}
-                    onChange={(e) => setCategoryInput(e.target.value)}
-                    disabled={loadingSubmit || loadingCategories}
-                    className="w-full border border-gray-300 rounded px-3 py-2"
-                    autoComplete="off"
-                    placeholder="Type or select a category"
-                    ref={categoryInputRef}
-                />
-                <datalist id="categorylist">
-                    {filteredCategories.map((cat) => (
-                        <option key={cat.id} value={cat.name} />
-                    ))}
-                </datalist>
-            </div>
-
-            {showCategoryTypeInput && (
-                <div>
-                    <label className="block font-medium mb-1">Category Type</label>
-                    <select
-                        value={categoryType}
-                        onChange={(e) => setCategoryType(e.target.value as 'income' | 'expense')}
-                        disabled={loadingSubmit}
-                        className="w-full border border-gray-300 rounded px-3 py-2"
-                    >
-                        <option value="expense">Expense</option>
-                        <option value="income">Income</option>
-                    </select>
+        <form className="space-y-6" onSubmit={handleSubmit}>
+            {error && (
+                <div className="mb-6 text-red-700 bg-red-50 border-l-4 border-red-500 p-4 rounded-lg shadow-sm animate-fade-in">
+                    <div className="flex items-center">
+                        <svg className="w-5 h-5 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                        </svg>
+                        <span className="text-sm font-medium">{error}</span>
+                    </div>
                 </div>
             )}
 
             <div>
-                <label htmlFor="amount" className="block font-medium mb-1">Amount</label>
-                <input
-                    id="amount"
-                    type="number"
-                    min="0.01"
-                    step="0.01"
-                    value={amount}
-                    onChange={e => setAmount(e.target.value)}
-                    disabled={loadingSubmit}
-                    className="w-full border border-gray-300 rounded px-3 py-2"
-                    required
-                />
+                <label htmlFor="category" className="block text-sm font-semibold text-gray-700 mb-2">
+                    Category
+                </label>
+                <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                        </svg>
+                    </div>
+                    <input
+                        list="categorylist"
+                        id="category"
+                        value={categoryInput}
+                        onChange={(e) => setCategoryInput(e.target.value)}
+                        disabled={loadingSubmit || loadingCategories}
+                        className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 disabled:bg-gray-50 disabled:cursor-not-allowed bg-white text-gray-900 placeholder:text-gray-400"
+                        autoComplete="off"
+                        placeholder="Type or select a category"
+                        ref={categoryInputRef}
+                    />
+                    <datalist id="categorylist">
+                        {filteredCategories.map((cat) => (
+                            <option key={cat.id} value={cat.name} />
+                        ))}
+                    </datalist>
+                </div>
+                {loadingCategories && (
+                    <p className="mt-1 text-xs text-gray-500">Loading categories...</p>
+                )}
             </div>
 
-            <div>
-                <label htmlFor="description" className="block font-medium mb-1">Description</label>
-                <input
-                    id="description"
-                    type="text"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    disabled={loadingSubmit}
-                    className="w-full border border-gray-300 rounded px-3 py-2"
-                    placeholder="Optional"
-                />
-            </div>
-
-            <div>
-                <label htmlFor="date" className="block font-medium mb-1">Date</label>
-                <input
-                    id="date"
-                    type="date"
-                    value={date}
-                    onChange={(e) => setDate(e.target.value)}
-                    disabled={loadingSubmit}
-                    className="w-full border border-gray-300 rounded px-3 py-2"
-                    required
-                />
-            </div>
-
-            {error && <p className="text-red-600 font-semibold text-sm mt-1">{error}</p>}
-
-            <button
-                type="submit"
-                disabled={loadingSubmit}
-                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded font-semibold mt-4 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-                {loadingSubmit ? 'Saving...' : initialValues.id ? 'Update Transaction' : 'Add Transaction'}
-            </button>
-            {onCancel && (
-                <button
-                    type="button"
-                    onClick={onCancel}
-                    className="w-full mt-2 py-2 rounded border border-gray-300 hover:bg-gray-100"
-                    disabled={loadingSubmit}
-                >
-                    Cancel
-                </button>
+            {showCategoryTypeInput && (
+                <div>
+                    <label htmlFor="categoryType" className="block text-sm font-semibold text-gray-700 mb-2">
+                        Category Type
+                    </label>
+                    <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                            </svg>
+                        </div>
+                        <select
+                            id="categoryType"
+                            value={categoryType}
+                            onChange={(e) => setCategoryType(e.target.value as 'income' | 'expense')}
+                            disabled={loadingSubmit}
+                            className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 disabled:bg-gray-50 disabled:cursor-not-allowed bg-white text-gray-900 font-medium appearance-none"
+                        >
+                            <option value="expense">Expense</option>
+                            <option value="income">Income</option>
+                        </select>
+                        <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                            <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </div>
+                    </div>
+                </div>
             )}
+
+            <div>
+                <label htmlFor="amount" className="block text-sm font-semibold text-gray-700 mb-2">
+                    Amount
+                </label>
+                <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </div>
+                    <input
+                        id="amount"
+                        type="number"
+                        min="0.01"
+                        step="0.01"
+                        value={amount}
+                        onChange={e => setAmount(e.target.value)}
+                        disabled={loadingSubmit}
+                        className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 disabled:bg-gray-50 disabled:cursor-not-allowed bg-white text-gray-900 placeholder:text-gray-400"
+                        placeholder="0.00"
+                        required
+                    />
+                </div>
+            </div>
+
+            <div>
+                <label htmlFor="description" className="block text-sm font-semibold text-gray-700 mb-2">
+                    Description <span className="text-gray-400 font-normal">(Optional)</span>
+                </label>
+                <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 pt-3 pointer-events-none">
+                        <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                    </div>
+                    <input
+                        id="description"
+                        type="text"
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                        disabled={loadingSubmit}
+                        className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 disabled:bg-gray-50 disabled:cursor-not-allowed bg-white text-gray-900 placeholder:text-gray-400"
+                        placeholder="Add a description"
+                    />
+                </div>
+            </div>
+
+            <div>
+                <label htmlFor="date" className="block text-sm font-semibold text-gray-700 mb-2">
+                    Date
+                </label>
+                <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                    </div>
+                    <input
+                        id="date"
+                        type="date"
+                        value={date}
+                        onChange={(e) => setDate(e.target.value)}
+                        disabled={loadingSubmit}
+                        className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 disabled:bg-gray-50 disabled:cursor-not-allowed bg-white text-gray-900"
+                        required
+                    />
+                </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                <button
+                    type="submit"
+                    disabled={loadingSubmit || loadingCategories}
+                    className={`flex-1 py-3.5 px-4 rounded-xl font-semibold text-white transition-all duration-200 transform ${
+                        loadingSubmit || loadingCategories
+                            ? "bg-indigo-400 cursor-not-allowed"
+                            : "bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 shadow-lg hover:shadow-xl active:scale-[0.98]"
+                    }`}
+                >
+                    {loadingSubmit ? (
+                        <span className="flex items-center justify-center">
+                            <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Saving...
+                        </span>
+                    ) : (
+                        <span className="flex items-center justify-center">
+                            {initialValues.id ? 'Update Transaction' : 'Add Transaction'}
+                            <svg className="ml-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                        </span>
+                    )}
+                </button>
+                {onCancel && (
+                    <button
+                        type="button"
+                        onClick={onCancel}
+                        className="px-6 py-3.5 rounded-xl border-2 border-gray-300 text-gray-700 font-semibold hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={loadingSubmit}
+                    >
+                        Cancel
+                    </button>
+                )}
+            </div>
         </form>
     );
 }
