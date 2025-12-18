@@ -833,7 +833,7 @@ func searchAndFilterTransactionsHandler(w http.ResponseWriter, r *http.Request) 
 	// Pagination
 	limit := 20
 	if l := r.URL.Query().Get("limit"); l != "" {
-		if v, err := strconv.Atoi(l); err == nil && v > 0 && v <= 100 {
+		if v, err := strconv.Atoi(l); err == nil && v > 0 && v <= 10000 {
 			limit = v
 		}
 	}
@@ -847,12 +847,13 @@ func searchAndFilterTransactionsHandler(w http.ResponseWriter, r *http.Request) 
 	// Sorting
 	sortParam := r.URL.Query().Get("sort")
 	allowedSorts := map[string]string{
-		"date_asc":    "date ASC",
-		"date_desc":   "date DESC",
-		"amount_asc":  "amount ASC",
-		"amount_desc": "amount DESC",
+		"date_asc":    "t.date ASC, t.created_at DESC",
+		"date_desc":   "t.date DESC, t.created_at DESC",
+		"amount_asc":  "t.amount ASC, t.created_at DESC",
+		"amount_desc": "t.amount DESC, t.created_at DESC",
 	}
-	orderBy := "date DESC"
+	// Default: Sort by when transaction was created (most recent first)
+	orderBy := "t.created_at DESC"
 	if s, ok := allowedSorts[sortParam]; ok {
 		orderBy = s
 	}

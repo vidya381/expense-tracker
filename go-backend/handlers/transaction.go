@@ -93,15 +93,16 @@ func FilterTransactionsPaginated(
 	offset int,
 ) ([]models.Transaction, error) {
 
-	base := `SELECT 
-                t.id, 
-                t.user_id, 
-                t.category_id, 
-                c.name AS category_name, 
-                t.amount, 
-                t.description, 
-                t.date, 
-                t.created_at 
+	base := `SELECT
+                t.id,
+                t.user_id,
+                t.category_id,
+                c.name AS category_name,
+                c.type AS category_type,
+                t.amount,
+                t.description,
+                t.date,
+                t.created_at
              FROM transactions t
              JOIN categories c ON t.category_id = c.id
              WHERE t.user_id = $1`
@@ -161,6 +162,7 @@ func FilterTransactionsPaginated(
 			&t.UserID,
 			&t.CategoryID,
 			&t.CategoryName,
+			&t.CategoryType,
 			&t.Amount,
 			&t.Description,
 			&t.Date,

@@ -49,6 +49,10 @@ export default function AddTransactionPage() {
     }, [token, authChecked]);
 
     function handleSuccess() {
+        // Signal that data should be refreshed
+        if (typeof window !== 'undefined') {
+            sessionStorage.setItem('refreshDashboard', 'true');
+        }
         router.push('/dashboard');
     }
 
