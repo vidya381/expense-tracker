@@ -2,9 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-    BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
-} from 'recharts';
 import { FiDollarSign, FiTrendingUp, FiRepeat, FiPlus } from 'react-icons/fi';
 import { useAuth } from '../../context/AuthContext';
 import { format, parseISO, subMonths } from 'date-fns';
@@ -302,8 +299,8 @@ export default function Dashboard() {
                             <p className="text-sm text-gray-600">{format(parseISO(selectedMonth + '-01'), 'MMMM yyyy')}</p>
                         </div>
                         <div className="flex items-center space-x-2 bg-gray-50 rounded-xl p-1">
-                            <button 
-                                onClick={prevMonth} 
+                            <button
+                                onClick={prevMonth}
                                 className="px-4 py-2 rounded-lg hover:bg-white transition-colors duration-200 text-gray-700 font-medium"
                                 aria-label="Previous month"
                             >
@@ -314,8 +311,8 @@ export default function Dashboard() {
                             <span className="px-4 py-2 text-sm font-medium text-gray-700 min-w-[120px] text-center">
                                 {format(parseISO(selectedMonth + '-01'), 'MMM yyyy')}
                             </span>
-                            <button 
-                                onClick={nextMonth} 
+                            <button
+                                onClick={nextMonth}
                                 className="px-4 py-2 rounded-lg hover:bg-white transition-colors duration-200 text-gray-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                                 aria-label="Next month"
                                 disabled={subMonths(parseISO(selectedMonth + '-01'), -1) > new Date()}
@@ -336,42 +333,68 @@ export default function Dashboard() {
                             </div>
                         </div>
                     ) : (
-                        <ResponsiveContainer width="100%" height={300}>
-                            <BarChart data={spendingData}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                                <XAxis 
-                                    dataKey="category" 
-                                    tick={{ fill: '#6b7280', fontSize: 12 }}
-                                    angle={-45}
-                                    textAnchor="end"
-                                    height={80}
-                                />
-                                <YAxis 
-                                    tick={{ fill: '#6b7280', fontSize: 12 }}
-                                    tickFormatter={(value) => `$${value}`}
-                                />
-                                <Tooltip 
-                                    formatter={(value: number) => formatCurrency(value)}
-                                    contentStyle={{ 
-                                        backgroundColor: 'white', 
-                                        border: '1px solid #e5e7eb', 
-                                        borderRadius: '8px',
-                                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                                    }}
-                                />
-                                <Bar 
-                                    dataKey="amount" 
-                                    fill="url(#colorGradient)"
-                                    radius={[8, 8, 0, 0]}
-                                />
-                                <defs>
-                                    <linearGradient id="colorGradient" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="0%" stopColor="#4f46e5" stopOpacity={1}/>
-                                        <stop offset="100%" stopColor="#7c3aed" stopOpacity={1}/>
-                                    </linearGradient>
-                                </defs>
-                            </BarChart>
-                        </ResponsiveContainer>
+                        (() => {
+                            const totalSpending = spendingData.reduce((sum, item) => sum + item.amount, 0);
+                            const maxAmount = Math.max(...spendingData.map(item => item.amount));
+
+                            return (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {spendingData.map((item, index) => {
+                                        const percentage = totalSpending > 0 ? (item.amount / totalSpending) * 100 : 0;
+                                        const barWidth = maxAmount > 0 ? (item.amount / maxAmount) * 100 : 0;
+
+                                        // Color palette for different categories
+                                        const colors = [
+                                            { gradient: 'from-indigo-500 to-purple-600', bg: 'from-indigo-50 to-purple-50', border: 'border-indigo-200' },
+                                            { gradient: 'from-pink-500 to-rose-600', bg: 'from-pink-50 to-rose-50', border: 'border-pink-200' },
+                                            { gradient: 'from-blue-500 to-cyan-600', bg: 'from-blue-50 to-cyan-50', border: 'border-blue-200' },
+                                            { gradient: 'from-emerald-500 to-teal-600', bg: 'from-emerald-50 to-teal-50', border: 'border-emerald-200' },
+                                            { gradient: 'from-amber-500 to-orange-600', bg: 'from-amber-50 to-orange-50', border: 'border-amber-200' },
+                                            { gradient: 'from-violet-500 to-purple-600', bg: 'from-violet-50 to-purple-50', border: 'border-violet-200' },
+                                        ];
+                                        const color = colors[index % colors.length];
+
+                                        return (
+                                            <div
+                                                key={item.category}
+                                                className={`bg-gradient-to-br ${color.bg} p-5 rounded-xl border-2 ${color.border} shadow-md hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1`}
+                                            >
+                                                <div className="flex items-start justify-between mb-3">
+                                                    <div className="flex-1">
+                                                        <h3 className="text-sm font-semibold text-gray-700 mb-1 truncate" title={item.category}>
+                                                            {item.category}
+                                                        </h3>
+                                                        <p className="text-2xl font-bold text-gray-900">
+                                                            {formatCurrency(item.amount)}
+                                                        </p>
+                                                    </div>
+                                                    <div className={`p-2 rounded-lg bg-gradient-to-br ${color.gradient} shadow-lg`}>
+                                                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                                                        </svg>
+                                                    </div>
+                                                </div>
+
+                                                {/* Progress bar */}
+                                                <div className="mt-4">
+                                                    <div className="flex items-center justify-between mb-2">
+                                                        <span className="text-xs font-medium text-gray-600">
+                                                            {percentage.toFixed(1)}% of total
+                                                        </span>
+                                                    </div>
+                                                    <div className="w-full bg-white/50 rounded-full h-2.5 overflow-hidden shadow-inner">
+                                                        <div
+                                                            className={`h-full bg-gradient-to-r ${color.gradient} rounded-full transition-all duration-500 ease-out`}
+                                                            style={{ width: `${barWidth}%` }}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            );
+                        })()
                     )}
                 </section>
 
