@@ -56,8 +56,10 @@ export default function TransactionForm({
     const [loadingCategories, setLoadingCategories] = useState(false);
     const [loadingSubmit, setLoadingSubmit] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [showDropdown, setShowDropdown] = useState(false);
 
     const categoryInputRef = useRef<HTMLInputElement>(null);
+    const dropdownRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         async function fetchCategories() {
@@ -87,12 +89,20 @@ export default function TransactionForm({
             setFilteredCategories(categories);
             setCategoryId(null);
             setShowCategoryTypeInput(false);
+            setShowDropdown(false);
             return;
         }
         const filtered = categories.filter((cat) =>
             cat.name.toLowerCase().startsWith(categoryInput.toLowerCase())
         );
         setFilteredCategories(filtered);
+
+        // Only show dropdown if there are filtered results
+        if (filtered.length > 0) {
+            setShowDropdown(true);
+        } else {
+            setShowDropdown(false);
+        }
 
         const exactMatch = categories.find(
             (cat) => cat.name.toLowerCase() === categoryInput.toLowerCase()
@@ -106,6 +116,29 @@ export default function TransactionForm({
             setShowCategoryTypeInput(true);
         }
     }, [categoryInput, categories]);
+
+    // Handle clicks outside dropdown
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (
+                dropdownRef.current &&
+                !dropdownRef.current.contains(event.target as Node) &&
+                categoryInputRef.current &&
+                !categoryInputRef.current.contains(event.target as Node)
+            ) {
+                setShowDropdown(false);
+            }
+        }
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const handleCategorySelect = (category: Category) => {
+        setCategoryInput(category.name);
+        setCategoryId(category.id);
+        setShowDropdown(false);
+        setShowCategoryTypeInput(false);
+    };
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
@@ -229,27 +262,59 @@ export default function TransactionForm({
                     Category
                 </label>
                 <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
                         <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
                         </svg>
                     </div>
                     <input
-                        list="categorylist"
                         id="category"
                         value={categoryInput}
                         onChange={(e) => setCategoryInput(e.target.value)}
+                        onFocus={() => {
+                            if (categoryInput && filteredCategories.length > 0) {
+                                setShowDropdown(true);
+                            }
+                        }}
                         disabled={loadingSubmit || loadingCategories}
                         className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 disabled:bg-gray-50 disabled:cursor-not-allowed bg-white text-gray-900 placeholder:text-gray-400"
                         autoComplete="off"
                         placeholder="Type or select a category"
                         ref={categoryInputRef}
                     />
-                    <datalist id="categorylist">
-                        {filteredCategories.map((cat) => (
-                            <option key={cat.id} value={cat.name} />
-                        ))}
-                    </datalist>
+
+                    {/* Custom Dropdown */}
+                    {showDropdown && filteredCategories.length > 0 && (
+                        <div
+                            ref={dropdownRef}
+                            className="absolute z-20 w-full mt-2 bg-white border-2 border-gray-200 rounded-xl shadow-xl max-h-64 overflow-y-auto"
+                        >
+                            {filteredCategories.map((cat) => (
+                                <button
+                                    key={cat.id}
+                                    type="button"
+                                    onClick={() => handleCategorySelect(cat)}
+                                    className="w-full px-4 py-3 flex items-center justify-between hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 transition-all duration-150 border-b border-gray-100 last:border-b-0 group"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className={`w-2 h-2 rounded-full ${
+                                            cat.type === 'income' ? 'bg-green-500' : 'bg-red-500'
+                                        }`} />
+                                        <span className="text-gray-900 font-medium group-hover:text-indigo-700 transition-colors">
+                                            {cat.name}
+                                        </span>
+                                    </div>
+                                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
+                                        cat.type === 'income'
+                                            ? 'bg-green-100 text-green-700'
+                                            : 'bg-red-100 text-red-700'
+                                    }`}>
+                                        {cat.type === 'income' ? '+ Income' : '- Expense'}
+                                    </span>
+                                </button>
+                            ))}
+                        </div>
+                    )}
                 </div>
                 {loadingCategories && (
                     <p className="mt-1 text-xs text-gray-500">Loading categories...</p>
