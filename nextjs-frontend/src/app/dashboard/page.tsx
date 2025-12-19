@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { FiDollarSign, FiTrendingUp, FiRepeat, FiPlus, FiArrowUp, FiCalendar } from 'react-icons/fi';
+import { FiDollarSign, FiTrendingUp, FiRepeat, FiPlus, FiArrowUp, FiCalendar, FiEdit2, FiTrash2 } from 'react-icons/fi';
 import { useAuth } from '../../context/AuthContext';
 import { format, parseISO, subMonths } from 'date-fns';
 
@@ -52,6 +52,8 @@ export default function Dashboard() {
     const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
     const [showScrollTop, setShowScrollTop] = useState(false);
     const [jumpToDate, setJumpToDate] = useState('');
+    const [deleteConfirm, setDeleteConfirm] = useState<Transaction | null>(null);
+    const [deleting, setDeleting] = useState(false);
 
     const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -263,6 +265,45 @@ export default function Dashboard() {
     const scrollToTop = () => {
         if (scrollContainerRef.current) {
             scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    };
+
+    // Handle edit transaction
+    const handleEdit = (transactionId: number) => {
+        router.push(`/transaction/edit/${transactionId}`);
+    };
+
+    // Handle delete transaction
+    const handleDelete = async (transactionId: number) => {
+        if (!token) return;
+
+        setDeleting(true);
+        try {
+            const formData = new FormData();
+            formData.append('id', String(transactionId));
+
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/transaction/delete`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                body: formData
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to delete transaction');
+            }
+
+            // Remove from local state
+            setAllTransactions(prev => prev.filter(tx => tx.id !== transactionId));
+            setTransactions(prev => prev.filter(tx => tx.id !== transactionId));
+            setDeleteConfirm(null);
+            setRefreshTrigger(prev => prev + 1); // Refresh summary data
+        } catch (err) {
+            console.error('Error deleting transaction:', err);
+            alert('Failed to delete transaction. Please try again.');
+        } finally {
+            setDeleting(false);
         }
     };
 
@@ -635,6 +676,24 @@ export default function Dashboard() {
                                                             {isExpense ? '-' : '+'}{formatCurrency(Math.abs(tx.amount))}
                                                         </div>
                                                     </div>
+
+                                                    {/* Action Buttons */}
+                                                    <div className="flex-shrink-0 flex items-center gap-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                                        <button
+                                                            onClick={() => handleEdit(tx.id)}
+                                                            className="p-2 rounded-lg text-indigo-600 hover:bg-indigo-100 transition-all duration-150"
+                                                            title="Edit transaction"
+                                                        >
+                                                            <FiEdit2 className="w-4 h-4" />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => setDeleteConfirm(tx)}
+                                                            className="p-2 rounded-lg text-red-600 hover:bg-red-100 transition-all duration-150"
+                                                            title="Delete transaction"
+                                                        >
+                                                            <FiTrash2 className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             </div>
                                         );
@@ -657,6 +716,72 @@ export default function Dashboard() {
 
                 </section>
             </div>
+
+            {/* Delete Confirmation Modal */}
+            {deleteConfirm && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 transform transition-all">
+                        <div className="flex items-center gap-4 mb-4">
+                            <div className="p-3 rounded-full bg-red-100">
+                                <FiTrash2 className="w-6 h-6 text-red-600" />
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-bold text-gray-900">Delete Transaction</h3>
+                                <p className="text-sm text-gray-600">This action cannot be undone</p>
+                            </div>
+                        </div>
+
+                        {/* Transaction Details */}
+                        <div className="mb-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
+                            <div className="flex items-start justify-between mb-3">
+                                <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <span className="text-xs font-semibold px-2 py-1 rounded-full bg-gray-200 text-gray-700">
+                                            {deleteConfirm.category}
+                                        </span>
+                                    </div>
+                                    <p className="text-sm text-gray-600">
+                                        {deleteConfirm.description || 'No description'}
+                                    </p>
+                                </div>
+                                <div className="text-right">
+                                    <p className={`text-lg font-bold ${
+                                        deleteConfirm.category_type === 'income'
+                                            ? 'text-green-600'
+                                            : 'text-red-600'
+                                    }`}>
+                                        {deleteConfirm.category_type === 'income' ? '+' : '-'}${Math.abs(deleteConfirm.amount).toFixed(2)}
+                                    </p>
+                                </div>
+                            </div>
+                            <p className="text-xs text-gray-500">
+                                {format(parseISO(deleteConfirm.date), 'MMM dd, yyyy')}
+                            </p>
+                        </div>
+
+                        <p className="text-gray-700 mb-6 text-sm">
+                            Are you sure you want to delete this transaction?
+                        </p>
+
+                        <div className="flex gap-3 justify-end">
+                            <button
+                                onClick={() => setDeleteConfirm(null)}
+                                disabled={deleting}
+                                className="px-4 py-2 border-2 border-gray-300 rounded-xl font-semibold text-gray-700 hover:bg-gray-100 transition-all duration-200 disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => handleDelete(deleteConfirm.id)}
+                                disabled={deleting}
+                                className="px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl font-semibold hover:from-red-700 hover:to-red-800 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50"
+                            >
+                                {deleting ? 'Deleting...' : 'Delete'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Floating Add Transaction Button */}
             <button
