@@ -404,12 +404,21 @@ export default function Dashboard() {
                                 Expense Tracker
                             </h1>
                         </div>
-                        <button
-                            onClick={logout}
-                            className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-indigo-600 transition-colors duration-200"
-                        >
-                            Logout
-                        </button>
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={() => router.push('/recurring')}
+                                className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg flex items-center gap-2"
+                            >
+                                <FiRepeat className="w-4 h-4" />
+                                Recurring
+                            </button>
+                            <button
+                                onClick={logout}
+                                className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-indigo-600 transition-colors duration-200"
+                            >
+                                Logout
+                            </button>
+                        </div>
                     </div>
                 </div>
             </header>

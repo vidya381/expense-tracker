@@ -323,30 +323,34 @@ export default function TransactionForm({
 
             {showCategoryTypeInput && (
                 <div>
-                    <label htmlFor="categoryType" className="block text-sm font-semibold text-gray-700 mb-2">
-                        Category Type
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Category Type <span className="text-red-500">*</span>
                     </label>
-                    <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                            </svg>
-                        </div>
-                        <select
-                            id="categoryType"
-                            value={categoryType}
-                            onChange={(e) => setCategoryType(e.target.value as 'income' | 'expense')}
+                    <div className="grid grid-cols-2 gap-3">
+                        <button
+                            type="button"
+                            onClick={() => setCategoryType('expense')}
                             disabled={loadingSubmit}
-                            className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 disabled:bg-gray-50 disabled:cursor-not-allowed bg-white text-gray-900 font-medium appearance-none"
+                            className={`px-4 py-3 rounded-xl font-semibold transition-all duration-200 ${
+                                categoryType === 'expense'
+                                    ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg'
+                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            } disabled:opacity-50 disabled:cursor-not-allowed`}
                         >
-                            <option value="expense">Expense</option>
-                            <option value="income">Income</option>
-                        </select>
-                        <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                            <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                            </svg>
-                        </div>
+                            Expense
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setCategoryType('income')}
+                            disabled={loadingSubmit}
+                            className={`px-4 py-3 rounded-xl font-semibold transition-all duration-200 ${
+                                categoryType === 'income'
+                                    ? 'bg-gradient-to-r from-green-600 to-green-700 text-white shadow-lg'
+                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            } disabled:opacity-50 disabled:cursor-not-allowed`}
+                        >
+                            Income
+                        </button>
                     </div>
                 </div>
             )}
