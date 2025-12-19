@@ -1,0 +1,573 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '../../context/AuthContext';
+import { FiPlus, FiEdit2, FiTrash2, FiAlertTriangle, FiCheckCircle, FiX, FiArrowLeft, FiDollarSign } from 'react-icons/fi';
+
+interface Budget {
+    id: number;
+    user_id: number;
+    category_id: number;
+    category_name: string;
+    amount: number;
+    period: string;
+    alert_threshold: number;
+    current_spending: number;
+    created_at: string;
+}
+
+interface Category {
+    id: number;
+    name: string;
+    type: string;
+}
+
+export default function BudgetsPage() {
+    const router = useRouter();
+    const { token, initialized } = useAuth();
+    const [authChecked, setAuthChecked] = useState(false);
+
+    const [budgets, setBudgets] = useState<Budget[]>([]);
+    const [categories, setCategories] = useState<Category[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [showModal, setShowModal] = useState(false);
+    const [editingBudget, setEditingBudget] = useState<Budget | null>(null);
+    const [deleteConfirm, setDeleteConfirm] = useState<Budget | null>(null);
+
+    // Form state
+    const [categoryId, setCategoryId] = useState<number>(0);
+    const [amount, setAmount] = useState('');
+    const [period, setPeriod] = useState<'monthly' | 'yearly'>('monthly');
+    const [alertThreshold, setAlertThreshold] = useState(80);
+    const [loadingSubmit, setLoadingSubmit] = useState(false);
+
+    // Check auth token on mount and redirect if needed
+    useEffect(() => {
+        if (!initialized) return;
+        if (!token) {
+            router.replace('/login');
+        } else {
+            setAuthChecked(true);
+        }
+    }, [token, initialized, router]);
+
+    useEffect(() => {
+        if (authChecked && token) {
+            fetchBudgets();
+            fetchCategories();
+        }
+    }, [authChecked, token]);
+
+    const fetchBudgets = async () => {
+        if (!token) return;
+        setLoading(true);
+        try {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/budget/list`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await response.json();
+            if (data.success) {
+                setBudgets(data.budgets || []);
+            }
+        } catch (error) {
+            console.error('Failed to fetch budgets:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const fetchCategories = async () => {
+        if (!token) return;
+        try {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/category/list`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await response.json();
+            if (data.success) {
+                // Only show expense categories for budgets
+                setCategories(data.categories?.filter((c: Category) => c.type === 'expense') || []);
+            }
+        } catch (error) {
+            console.error('Failed to fetch categories:', error);
+        }
+    };
+
+    const openAddModal = () => {
+        setEditingBudget(null);
+        setCategoryId(0);
+        setAmount('');
+        setPeriod('monthly');
+        setAlertThreshold(80);
+        setShowModal(true);
+    };
+
+    const openEditModal = (budget: Budget) => {
+        setEditingBudget(budget);
+        setCategoryId(budget.category_id);
+        setAmount(budget.amount.toString());
+        setPeriod(budget.period as 'monthly' | 'yearly');
+        setAlertThreshold(budget.alert_threshold);
+        setShowModal(true);
+    };
+
+    const closeModal = () => {
+        setShowModal(false);
+        setEditingBudget(null);
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!token) return;
+
+        setLoadingSubmit(true);
+        try {
+            const formData = new FormData();
+            if (editingBudget) {
+                formData.append('id', editingBudget.id.toString());
+            } else {
+                formData.append('category_id', categoryId.toString());
+                formData.append('period', period);
+            }
+            formData.append('amount', amount);
+            formData.append('alert_threshold', alertThreshold.toString());
+
+            const endpoint = editingBudget ? '/budget/update' : '/budget/add';
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${endpoint}`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: formData
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                await fetchBudgets();
+                closeModal();
+            } else {
+                alert(data.error || 'Failed to save budget');
+            }
+        } catch (error) {
+            console.error('Failed to save budget:', error);
+            alert('Failed to save budget');
+        } finally {
+            setLoadingSubmit(false);
+        }
+    };
+
+    const handleDelete = async () => {
+        if (!token || !deleteConfirm) return;
+
+        try {
+            const formData = new FormData();
+            formData.append('id', deleteConfirm.id.toString());
+
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/budget/delete`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: formData
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                await fetchBudgets();
+                setDeleteConfirm(null);
+            } else {
+                alert(data.error || 'Failed to delete budget');
+            }
+        } catch (error) {
+            console.error('Failed to delete budget:', error);
+            alert('Failed to delete budget');
+        }
+    };
+
+    const calculateProgress = (budget: Budget) => {
+        if (budget.amount === 0) return 0;
+        return Math.min((budget.current_spending / budget.amount) * 100, 100);
+    };
+
+    const getProgressColor = (budget: Budget) => {
+        const progress = calculateProgress(budget);
+        if (progress >= budget.alert_threshold) return 'bg-rose-400';
+        if (progress >= budget.alert_threshold * 0.8) return 'bg-amber-400';
+        return 'bg-emerald-400';
+    };
+
+    const getStatusIcon = (budget: Budget) => {
+        const progress = calculateProgress(budget);
+        if (progress >= budget.alert_threshold) {
+            return <FiAlertTriangle className="w-5 h-5 text-rose-400" />;
+        }
+        return <FiCheckCircle className="w-5 h-5 text-emerald-400" />;
+    };
+
+    if (!authChecked || loading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+                <div className="text-center">
+                    <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-indigo-600 border-t-transparent mb-4"></div>
+                    <p className="text-gray-600 font-medium">Loading budgets...</p>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+            {/* Header */}
+            <header className="bg-white/80 backdrop-blur-sm border-b border-gray-200/50 shadow-sm sticky top-0 z-40">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2 sm:space-x-3">
+                            <button
+                                onClick={() => router.push('/dashboard')}
+                                className="p-2 hover:bg-gray-100 rounded-lg transition-colors duration-200 flex-shrink-0"
+                                aria-label="Back to dashboard"
+                            >
+                                <FiArrowLeft className="w-5 h-5 sm:w-6 sm:h-6 text-gray-700" />
+                            </button>
+                            <div className="flex items-center gap-1.5 sm:gap-2">
+                                <FiDollarSign className="w-6 h-6 sm:w-7 sm:h-7 text-emerald-600 flex-shrink-0" />
+                                <h1 className="text-lg sm:text-2xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+                                    <span className="hidden sm:inline">Budget Management</span>
+                                    <span className="sm:hidden">Budgets</span>
+                                </h1>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                {/* Header Info */}
+                <div className="mb-6">
+                    <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">Your Budgets</h2>
+                    <p className="text-sm sm:text-base text-gray-600">Track your spending and stay within your budget limits</p>
+                </div>
+
+                {/* Budget Cards Grid */}
+                {budgets.length === 0 ? (
+                    <div className="bg-white/80 backdrop-blur-sm shadow-2xl rounded-2xl border border-white/20 p-8 sm:p-16 text-center">
+                        <div className="w-20 h-20 bg-gradient-to-br from-emerald-100 to-teal-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                            <FiDollarSign className="w-10 h-10 text-emerald-600" />
+                        </div>
+                        <h3 className="text-xl font-bold text-gray-900 mb-2">No Budgets Yet</h3>
+                        <p className="text-gray-500 mb-6">Create your first budget to start tracking your spending</p>
+                        <button
+                            onClick={openAddModal}
+                            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl font-semibold hover:from-emerald-700 hover:to-teal-700 transition-all duration-200 shadow-lg hover:shadow-xl"
+                        >
+                            <FiPlus className="w-5 h-5" />
+                            Add Your First Budget
+                        </button>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                        {budgets.map((budget) => {
+                            const progress = calculateProgress(budget);
+                            const progressColor = getProgressColor(budget);
+                            const remaining = Math.max(0, budget.amount - budget.current_spending);
+
+                            // Status-based styling matching dashboard
+                            let bgColor = 'bg-emerald-50';
+                            let borderColor = 'border-emerald-200';
+                            let textColor = 'text-emerald-700';
+                            let iconGradient = 'from-emerald-500 to-teal-600';
+
+                            if (progress >= budget.alert_threshold) {
+                                bgColor = 'bg-rose-50';
+                                borderColor = 'border-rose-200';
+                                textColor = 'text-rose-700';
+                                iconGradient = 'from-rose-500 to-pink-600';
+                            } else if (progress >= budget.alert_threshold * 0.8) {
+                                bgColor = 'bg-amber-50';
+                                borderColor = 'border-amber-200';
+                                textColor = 'text-amber-700';
+                                iconGradient = 'from-amber-500 to-orange-600';
+                            }
+
+                            return (
+                                <div
+                                    key={budget.id}
+                                    className={`group ${bgColor} border ${borderColor} rounded-xl p-4 hover:shadow-lg transition-all duration-200`}
+                                >
+                                    <div className="flex items-start justify-between mb-3">
+                                        <div className="flex-1">
+                                            <h3 className="font-bold text-gray-900 text-sm mb-1">
+                                                {budget.category_name}
+                                            </h3>
+                                            <span className="text-xs px-2 py-1 bg-white rounded-full text-gray-600 capitalize">
+                                                {budget.period}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            {progress >= budget.alert_threshold && (
+                                                <FiAlertTriangle className={`w-5 h-5 ${textColor} flex-shrink-0`} />
+                                            )}
+                                            <div className={`p-2 rounded-lg bg-gradient-to-br ${iconGradient} shadow-lg flex-shrink-0`}>
+                                                <FiDollarSign className="w-5 h-5 text-white" />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="mb-3">
+                                        <div className="flex items-baseline justify-between mb-2">
+                                            <span className={`text-2xl font-bold ${textColor}`}>
+                                                ${budget.current_spending.toFixed(0)}
+                                            </span>
+                                            <span className="text-sm text-gray-600">
+                                                / ${budget.amount.toFixed(0)}
+                                            </span>
+                                        </div>
+
+                                        <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden mb-2">
+                                            <div
+                                                className={`h-full ${progressColor} transition-all duration-500`}
+                                                style={{ width: `${progress}%` }}
+                                            />
+                                        </div>
+
+                                        <div className="flex items-center justify-between text-xs text-gray-600">
+                                            <span>{progress.toFixed(0)}% used</span>
+                                            <span className="font-semibold">${remaining.toFixed(0)} left</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center justify-between pt-3 border-t border-gray-200">
+                                        <span className="text-xs text-gray-600">
+                                            🔔 Alert at {budget.alert_threshold}%
+                                        </span>
+                                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button
+                                                onClick={() => openEditModal(budget)}
+                                                className="p-1.5 bg-white hover:bg-gray-50 rounded-lg transition-colors shadow-sm"
+                                                title="Edit"
+                                            >
+                                                <FiEdit2 className="w-4 h-4 text-gray-600" />
+                                            </button>
+                                            <button
+                                                onClick={() => setDeleteConfirm(budget)}
+                                                className="p-1.5 bg-white hover:bg-gray-50 rounded-lg transition-colors shadow-sm"
+                                                title="Delete"
+                                            >
+                                                <FiTrash2 className="w-4 h-4 text-rose-600" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+
+                {/* Floating Add Button */}
+                <button
+                    onClick={openAddModal}
+                    className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 p-4 sm:p-5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-full shadow-2xl hover:shadow-3xl transition-all duration-200 transform hover:scale-110 z-50 group"
+                    aria-label="Add new budget"
+                >
+                    <FiPlus className="w-6 h-6" />
+                </button>
+
+                {/* Add/Edit Modal */}
+                {showModal && (
+                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                        <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+                            {/* Modal Header */}
+                            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-t-2xl z-10">
+                                <h2 className="text-xl font-bold text-gray-900">
+                                    {editingBudget ? 'Edit Budget' : 'Add New Budget'}
+                                </h2>
+                                <button
+                                    onClick={closeModal}
+                                    className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                                    disabled={loadingSubmit}
+                                >
+                                    <FiX className="w-5 h-5 text-gray-500" />
+                                </button>
+                            </div>
+
+                            {/* Modal Form */}
+                            <form onSubmit={handleSubmit} className="p-6 space-y-5">
+                                {/* Category Selection */}
+                                {!editingBudget && (
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-900 mb-2">
+                                            🏷️ Budget Category <span className="text-rose-500">*</span>
+                                        </label>
+                                        <select
+                                            value={categoryId}
+                                            onChange={(e) => setCategoryId(Number(e.target.value))}
+                                            required
+                                            disabled={loadingSubmit}
+                                            className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all disabled:bg-gray-50 disabled:cursor-not-allowed text-gray-900 font-medium text-base"
+                                        >
+                                            <option value={0}>Overall Budget</option>
+                                            {categories.map((cat) => (
+                                                <option key={cat.id} value={cat.id}>
+                                                    {cat.name}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <p className="mt-2 text-sm text-gray-700 bg-blue-50 border border-blue-200 rounded-lg p-2">
+                                            💡 Select "Overall Budget" to track all expenses, or choose a specific category
+                                        </p>
+                                    </div>
+                                )}
+
+                                {/* Period Selection */}
+                                {!editingBudget && (
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-900 mb-2">
+                                            📆 Budget Period <span className="text-rose-500">*</span>
+                                        </label>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <button
+                                                type="button"
+                                                onClick={() => setPeriod('monthly')}
+                                                disabled={loadingSubmit}
+                                                className={`px-4 py-3 rounded-xl font-semibold transition-all duration-200 ${
+                                                    period === 'monthly'
+                                                        ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-lg'
+                                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                                } disabled:opacity-50 disabled:cursor-not-allowed`}
+                                            >
+                                                Monthly
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setPeriod('yearly')}
+                                                disabled={loadingSubmit}
+                                                className={`px-4 py-3 rounded-xl font-semibold transition-all duration-200 ${
+                                                    period === 'yearly'
+                                                        ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white shadow-lg'
+                                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                                } disabled:opacity-50 disabled:cursor-not-allowed`}
+                                            >
+                                                Yearly
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Amount */}
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-900 mb-2">
+                                        💵 Budget Amount <span className="text-rose-500">*</span>
+                                    </label>
+                                    <div className="relative">
+                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-700 font-bold text-lg">
+                                            $
+                                        </span>
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            min="0"
+                                            value={amount}
+                                            onChange={(e) => setAmount(e.target.value)}
+                                            required
+                                            disabled={loadingSubmit}
+                                            className="w-full pl-8 pr-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all disabled:bg-gray-50 disabled:cursor-not-allowed text-gray-900 font-medium text-base"
+                                            placeholder="0.00"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Alert Threshold */}
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-900 mb-3">
+                                        ⚠️ Alert Threshold: <span className="text-indigo-600 font-bold text-lg">{alertThreshold}%</span> <span className="text-rose-500">*</span>
+                                    </label>
+                                    <input
+                                        type="range"
+                                        min="0"
+                                        max="100"
+                                        step="5"
+                                        value={alertThreshold}
+                                        onChange={(e) => setAlertThreshold(Number(e.target.value))}
+                                        disabled={loadingSubmit}
+                                        className="w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer disabled:cursor-not-allowed accent-indigo-600"
+                                    />
+                                    <div className="flex justify-between text-xs font-medium text-gray-600 mt-2">
+                                        <span>0%</span>
+                                        <span>50%</span>
+                                        <span>100%</span>
+                                    </div>
+                                    <p className="mt-2 text-sm text-gray-700 bg-indigo-50 border border-indigo-200 rounded-lg p-2">
+                                        💡 You'll receive an alert when spending reaches this percentage
+                                    </p>
+                                </div>
+
+                                {/* Form Actions */}
+                                <div className="flex gap-3 pt-4">
+                                    <button
+                                        type="submit"
+                                        disabled={loadingSubmit}
+                                        className="flex-1 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold rounded-xl transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        {loadingSubmit ? 'Saving...' : editingBudget ? 'Update Budget' : 'Create Budget'}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={closeModal}
+                                        disabled={loadingSubmit}
+                                        className="px-6 py-3 border-2 border-gray-300 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                )}
+
+                {/* Delete Confirmation Modal */}
+                {deleteConfirm && (
+                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                        <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="p-3 bg-red-100 rounded-full">
+                                    <FiTrash2 className="w-6 h-6 text-red-600" />
+                                </div>
+                                <h3 className="text-xl font-bold text-gray-900">Delete Budget</h3>
+                            </div>
+
+                            <div className="mb-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
+                                <div className="mb-2">
+                                    <span className="text-sm font-semibold text-gray-700">Budget:</span>
+                                    <span className="text-sm text-gray-900 ml-2">{deleteConfirm.category_name}</span>
+                                </div>
+                                <div className="mb-2">
+                                    <span className="text-sm font-semibold text-gray-700">Period:</span>
+                                    <span className="text-sm text-gray-900 ml-2 capitalize">{deleteConfirm.period}</span>
+                                </div>
+                                <div>
+                                    <span className="text-sm font-semibold text-gray-700">Amount:</span>
+                                    <span className="text-sm text-gray-900 ml-2">${deleteConfirm.amount.toFixed(2)}</span>
+                                </div>
+                            </div>
+
+                            <p className="text-gray-600 mb-6">
+                                Are you sure you want to delete this budget? This action cannot be undone.
+                            </p>
+
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={handleDelete}
+                                    className="flex-1 px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-xl transition-all duration-200"
+                                >
+                                    Delete Budget
+                                </button>
+                                <button
+                                    onClick={() => setDeleteConfirm(null)}
+                                    className="px-6 py-3 border-2 border-gray-300 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition-all duration-200"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}

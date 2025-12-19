@@ -97,13 +97,7 @@ export default function TransactionForm({
         );
         setFilteredCategories(filtered);
 
-        // Only show dropdown if there are filtered results
-        if (filtered.length > 0) {
-            setShowDropdown(true);
-        } else {
-            setShowDropdown(false);
-        }
-
+        // Check for exact match
         const exactMatch = categories.find(
             (cat) => cat.name.toLowerCase() === categoryInput.toLowerCase()
         );
@@ -111,9 +105,17 @@ export default function TransactionForm({
         if (exactMatch) {
             setCategoryId(exactMatch.id);
             setShowCategoryTypeInput(false);
+            // Don't auto-show dropdown for exact matches (user selected from dropdown)
+            setShowDropdown(false);
         } else {
             setCategoryId(null);
             setShowCategoryTypeInput(true);
+            // Only show dropdown if there are filtered results and no exact match
+            if (filtered.length > 0) {
+                setShowDropdown(true);
+            } else {
+                setShowDropdown(false);
+            }
         }
     }, [categoryInput, categories]);
 
@@ -259,7 +261,7 @@ export default function TransactionForm({
 
             <div>
                 <label htmlFor="category" className="block text-sm font-semibold text-gray-700 mb-2">
-                    Category
+                    🏷️ Category <span className="text-rose-500">*</span>
                 </label>
                 <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
@@ -298,7 +300,7 @@ export default function TransactionForm({
                                 >
                                     <div className="flex items-center gap-3">
                                         <div className={`w-2 h-2 rounded-full ${
-                                            cat.type === 'income' ? 'bg-green-500' : 'bg-red-500'
+                                            cat.type === 'income' ? 'bg-emerald-400' : 'bg-rose-400'
                                         }`} />
                                         <span className="text-gray-900 font-medium group-hover:text-indigo-700 transition-colors">
                                             {cat.name}
@@ -306,10 +308,10 @@ export default function TransactionForm({
                                     </div>
                                     <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
                                         cat.type === 'income'
-                                            ? 'bg-green-100 text-green-700'
-                                            : 'bg-red-100 text-red-700'
+                                            ? 'bg-emerald-50 text-emerald-700'
+                                            : 'bg-rose-50 text-rose-700'
                                     }`}>
-                                        {cat.type === 'income' ? '+ Income' : '- Expense'}
+                                        {cat.type === 'income' ? '💰 Income' : '💳 Expense'}
                                     </span>
                                 </button>
                             ))}
@@ -322,34 +324,35 @@ export default function TransactionForm({
             </div>
 
             {showCategoryTypeInput && (
-                <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        Category Type <span className="text-red-500">*</span>
+                <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border-2 border-indigo-100 rounded-xl p-4">
+                    <label className="block text-sm font-semibold text-gray-700 mb-3">
+                        💡 New Category Type <span className="text-rose-500">*</span>
                     </label>
+                    <p className="text-xs text-gray-600 mb-3">This category doesn't exist yet. Choose whether it's an income or expense.</p>
                     <div className="grid grid-cols-2 gap-3">
                         <button
                             type="button"
                             onClick={() => setCategoryType('expense')}
                             disabled={loadingSubmit}
-                            className={`px-4 py-3 rounded-xl font-semibold transition-all duration-200 ${
+                            className={`px-4 py-3.5 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center gap-2 ${
                                 categoryType === 'expense'
-                                    ? 'bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg'
-                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                    ? 'bg-gradient-to-r from-rose-400 to-pink-400 text-white shadow-lg scale-105'
+                                    : 'bg-white text-gray-700 hover:bg-gray-50 border-2 border-gray-200'
                             } disabled:opacity-50 disabled:cursor-not-allowed`}
                         >
-                            Expense
+                            <span>💳</span> Expense
                         </button>
                         <button
                             type="button"
                             onClick={() => setCategoryType('income')}
                             disabled={loadingSubmit}
-                            className={`px-4 py-3 rounded-xl font-semibold transition-all duration-200 ${
+                            className={`px-4 py-3.5 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center gap-2 ${
                                 categoryType === 'income'
-                                    ? 'bg-gradient-to-r from-green-600 to-green-700 text-white shadow-lg'
-                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                    ? 'bg-gradient-to-r from-emerald-400 to-teal-400 text-white shadow-lg scale-105'
+                                    : 'bg-white text-gray-700 hover:bg-gray-50 border-2 border-gray-200'
                             } disabled:opacity-50 disabled:cursor-not-allowed`}
                         >
-                            Income
+                            <span>💰</span> Income
                         </button>
                     </div>
                 </div>
@@ -357,7 +360,7 @@ export default function TransactionForm({
 
             <div>
                 <label htmlFor="amount" className="block text-sm font-semibold text-gray-700 mb-2">
-                    Amount
+                    💵 Amount <span className="text-rose-500">*</span>
                 </label>
                 <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -382,7 +385,7 @@ export default function TransactionForm({
 
             <div>
                 <label htmlFor="description" className="block text-sm font-semibold text-gray-700 mb-2">
-                    Description <span className="text-gray-400 font-normal">(Optional)</span>
+                    📝 Description <span className="text-gray-400 font-normal">(Optional)</span>
                 </label>
                 <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 pt-3 pointer-events-none">
@@ -404,7 +407,7 @@ export default function TransactionForm({
 
             <div>
                 <label htmlFor="date" className="block text-sm font-semibold text-gray-700 mb-2">
-                    Date
+                    📅 Date <span className="text-rose-500">*</span>
                 </label>
                 <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">

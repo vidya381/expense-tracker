@@ -72,6 +72,11 @@ func main() {
 	mux.HandleFunc("/recurring/edit", middleware.RequireAuth(jwtSecret, editRecurringHandler))
 	mux.HandleFunc("/recurring/delete", middleware.RequireAuth(jwtSecret, deleteRecurringHandler))
 	mux.HandleFunc("/transactions/search", middleware.RequireAuth(jwtSecret, searchAndFilterTransactionsHandler))
+	mux.HandleFunc("/budget/add", middleware.RequireAuth(jwtSecret, addBudgetHandler))
+	mux.HandleFunc("/budget/list", middleware.RequireAuth(jwtSecret, listBudgetHandler))
+	mux.HandleFunc("/budget/update", middleware.RequireAuth(jwtSecret, updateBudgetHandler))
+	mux.HandleFunc("/budget/delete", middleware.RequireAuth(jwtSecret, deleteBudgetHandler))
+	mux.HandleFunc("/budget/alerts", middleware.RequireAuth(jwtSecret, budgetAlertsHandler))
 
 	corsHandler := cors.New(cors.Options{
 		AllowedOrigins:   []string{"http://localhost:3000"},
@@ -874,6 +879,220 @@ func searchAndFilterTransactionsHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	json.NewEncoder(w).Encode(list)
+}
+
+// Budget handlers
+func addBudgetHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	if r.Method != http.MethodPost {
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Only POST allowed",
+		})
+		return
+	}
+
+	userID, ok := middleware.GetUserID(r)
+	if !ok {
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Unauthorized",
+		})
+		return
+	}
+
+	categoryID, _ := strconv.Atoi(r.FormValue("category_id"))
+	amount, err := strconv.ParseFloat(r.FormValue("amount"), 64)
+	if err != nil || amount <= 0 {
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Valid amount is required",
+		})
+		return
+	}
+
+	period := strings.ToLower(r.FormValue("period"))
+	if period == "" {
+		period = "monthly"
+	}
+
+	alertThreshold, _ := strconv.Atoi(r.FormValue("alert_threshold"))
+	if alertThreshold == 0 {
+		alertThreshold = 80 // default to 80%
+	}
+
+	budget := models.Budget{
+		UserID:         userID,
+		CategoryID:     categoryID,
+		Amount:         amount,
+		Period:         period,
+		AlertThreshold: alertThreshold,
+	}
+
+	err = handlers.AddBudget(db, budget)
+	if err != nil {
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "Budget added successfully",
+	})
+}
+
+func listBudgetHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	userID, ok := middleware.GetUserID(r)
+	if !ok {
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Unauthorized",
+		})
+		return
+	}
+
+	budgets, err := handlers.ListBudgets(db, userID)
+	if err != nil {
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"budgets": budgets,
+	})
+}
+
+func updateBudgetHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	if r.Method != http.MethodPost {
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Only POST allowed",
+		})
+		return
+	}
+
+	userID, ok := middleware.GetUserID(r)
+	if !ok {
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Unauthorized",
+		})
+		return
+	}
+
+	budgetID, err := strconv.Atoi(r.FormValue("id"))
+	if err != nil || budgetID <= 0 {
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Valid budget ID is required",
+		})
+		return
+	}
+
+	amount, err := strconv.ParseFloat(r.FormValue("amount"), 64)
+	if err != nil || amount <= 0 {
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Valid amount is required",
+		})
+		return
+	}
+
+	alertThreshold, err := strconv.Atoi(r.FormValue("alert_threshold"))
+	if err != nil {
+		alertThreshold = 80
+	}
+
+	err = handlers.UpdateBudget(db, userID, budgetID, amount, alertThreshold)
+	if err != nil {
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "Budget updated successfully",
+	})
+}
+
+func deleteBudgetHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	if r.Method != http.MethodPost {
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Only POST allowed",
+		})
+		return
+	}
+
+	userID, ok := middleware.GetUserID(r)
+	if !ok {
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Unauthorized",
+		})
+		return
+	}
+
+	budgetID, err := strconv.Atoi(r.FormValue("id"))
+	if err != nil || budgetID <= 0 {
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Valid budget ID is required",
+		})
+		return
+	}
+
+	err = handlers.DeleteBudget(db, budgetID, userID)
+	if err != nil {
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "Budget deleted successfully",
+	})
+}
+
+func budgetAlertsHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	userID, ok := middleware.GetUserID(r)
+	if !ok {
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Unauthorized",
+		})
+		return
+	}
+
+	alerts, err := handlers.GetBudgetAlerts(db, userID)
+	if err != nil {
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	json.NewEncoder(w).Encode(alerts)
 }
 
 func jsonError(w http.ResponseWriter, msg string, code int) {

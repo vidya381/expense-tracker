@@ -35,6 +35,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     function logout() {
         setToken(null);
         localStorage.removeItem('jwt_token');
+        // Clear session-based alert tracking on logout
+        sessionStorage.removeItem('budgetAlertsShown');
         router.push('/login');
     }
 

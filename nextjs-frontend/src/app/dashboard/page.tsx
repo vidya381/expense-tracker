@@ -2,9 +2,10 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { FiDollarSign, FiTrendingUp, FiRepeat, FiPlus, FiArrowUp, FiCalendar, FiEdit2, FiTrash2 } from 'react-icons/fi';
+import { FiDollarSign, FiTrendingUp, FiRepeat, FiPlus, FiArrowUp, FiCalendar, FiEdit2, FiTrash2, FiAlertTriangle, FiX, FiBell } from 'react-icons/fi';
 import { useAuth } from '../../context/AuthContext';
 import { format, parseISO, subMonths } from 'date-fns';
+import TransactionForm from '../../components/TransactionForm';
 
 interface SummaryData {
     total_expenses: number;
@@ -24,6 +25,24 @@ interface Transaction {
     category: string;
     category_type: string; // "income" or "expense"
     description: string;
+}
+
+interface Budget {
+    id: number;
+    user_id: number;
+    category_id: number;
+    category_name: string;
+    amount: number;
+    period: string;
+    alert_threshold: number;
+    current_spending: number;
+    created_at: string;
+}
+
+interface Category {
+    id: number;
+    name: string;
+    type: 'income' | 'expense';
 }
 
 export default function Dashboard() {
@@ -47,6 +66,8 @@ export default function Dashboard() {
     const [hasMore, setHasMore] = useState(false);
     const [filterCategory, setFilterCategory] = useState('');
     const [sortOrder, setSortOrder] = useState<'date_desc' | 'date_asc'>('date_desc');
+    const [minAmount, setMinAmount] = useState('');
+    const [maxAmount, setMaxAmount] = useState('');
     const [allTransactions, setAllTransactions] = useState<Transaction[]>([]); // Store all transactions
     const [loadingMore, setLoadingMore] = useState(false);
     const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
@@ -54,6 +75,16 @@ export default function Dashboard() {
     const [jumpToDate, setJumpToDate] = useState('');
     const [deleteConfirm, setDeleteConfirm] = useState<Transaction | null>(null);
     const [deleting, setDeleting] = useState(false);
+
+    // Budget state
+    const [budgets, setBudgets] = useState<Budget[]>([]);
+    const [budgetAlerts, setBudgetAlerts] = useState<Budget[]>([]);
+    const [showToast, setShowToast] = useState(false);
+
+    // Transaction modal state
+    const [showTransactionModal, setShowTransactionModal] = useState(false);
+    const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+    const [categories, setCategories] = useState<Category[]>([]);
 
     const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -174,12 +205,49 @@ export default function Dashboard() {
                     )
                     : [];
 
+                // Sort transactions based on current sortOrder
+                const sortedTransactions = [...uniqueTransactions].sort((a, b) => {
+                    const dateA = new Date(a.date).getTime();
+                    const dateB = new Date(b.date).getTime();
+                    return sortOrder === 'date_desc' ? dateB - dateA : dateA - dateB;
+                });
+
                 // Store all transactions
-                setAllTransactions(uniqueTransactions);
-                setTransactions(uniqueTransactions);
+                setAllTransactions(sortedTransactions);
+                setTransactions(sortedTransactions);
                 setPage(1);
                 // No pagination - we fetch all transactions at once
                 setHasMore(false);
+
+                // 5. Fetch budgets
+                const budgetsRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/budget/list`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                if (budgetsRes.ok) {
+                    const budgetsData = await budgetsRes.json();
+                    const budgetsList = budgetsData.success ? (budgetsData.budgets || []) : [];
+                    setBudgets(budgetsList);
+
+                    // Filter budgets that have exceeded their alert threshold
+                    const alerts = budgetsList.filter((b: Budget) => {
+                        const progress = (b.current_spending / b.amount) * 100;
+                        return progress >= b.alert_threshold;
+                    });
+                    setBudgetAlerts(alerts);
+
+                    // Show toast notification only once per session
+                    const alertsShown = sessionStorage.getItem('budgetAlertsShown');
+                    if (alerts.length > 0 && !alertsShown) {
+                        setShowToast(true);
+                        sessionStorage.setItem('budgetAlertsShown', 'true');
+
+                        // Auto-dismiss toast after 8 seconds
+                        setTimeout(() => setShowToast(false), 8000);
+                    } else if (alertsShown) {
+                        // If already shown this session, keep toast dismissed
+                        setShowToast(false);
+                    }
+                }
             } catch (err: any) {
                 setError(err.message || 'Unknown error');
             } finally {
@@ -188,19 +256,66 @@ export default function Dashboard() {
         }
 
         fetchData();
-    }, [token, authChecked, selectedMonth, sortOrder, refreshTrigger]);
+    }, [token, authChecked, selectedMonth, refreshTrigger]); // Removed sortOrder - will handle client-side
 
-    // Client-side filtering when category filter changes
+    // Client-side sorting when sortOrder changes
     useEffect(() => {
-        if (!filterCategory) {
-            setTransactions(allTransactions);
-        } else {
-            const filtered = allTransactions.filter((tx: Transaction) =>
+        const sorted = [...allTransactions].sort((a, b) => {
+            const dateA = new Date(a.date).getTime();
+            const dateB = new Date(b.date).getTime();
+            return sortOrder === 'date_desc' ? dateB - dateA : dateA - dateB;
+        });
+        setAllTransactions(sorted);
+    }, [sortOrder]);
+
+    // Client-side filtering when filters change (category and amount range)
+    useEffect(() => {
+        let filtered = [...allTransactions];
+
+        // Filter by category
+        if (filterCategory) {
+            filtered = filtered.filter((tx: Transaction) =>
                 tx.category.toLowerCase().includes(filterCategory.toLowerCase())
             );
-            setTransactions(filtered);
         }
-    }, [filterCategory, allTransactions]);
+
+        // Filter by amount range
+        if (minAmount) {
+            const min = parseFloat(minAmount);
+            if (!isNaN(min)) {
+                filtered = filtered.filter((tx: Transaction) => Math.abs(tx.amount) >= min);
+            }
+        }
+        if (maxAmount) {
+            const max = parseFloat(maxAmount);
+            if (!isNaN(max)) {
+                filtered = filtered.filter((tx: Transaction) => Math.abs(tx.amount) <= max);
+            }
+        }
+
+        setTransactions(filtered);
+    }, [filterCategory, minAmount, maxAmount, allTransactions]);
+
+    // Fetch categories when transaction modal opens
+    useEffect(() => {
+        if (!token || !showTransactionModal) return;
+
+        async function fetchCategories() {
+            try {
+                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/category/list`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                const data = await res.json();
+                if (data.success) {
+                    setCategories(data.categories);
+                }
+            } catch (err) {
+                console.error('Failed to fetch categories:', err);
+            }
+        }
+
+        fetchCategories();
+    }, [token, showTransactionModal]);
 
     // Load more handler for pagination
     async function loadMore() {
@@ -270,7 +385,11 @@ export default function Dashboard() {
 
     // Handle edit transaction
     const handleEdit = (transactionId: number) => {
-        router.push(`/transaction/edit/${transactionId}`);
+        const transaction = transactions.find(t => t.id === transactionId);
+        if (transaction) {
+            setEditingTransaction(transaction);
+            setShowTransactionModal(true);
+        }
     };
 
     // Handle delete transaction
@@ -396,27 +515,44 @@ export default function Dashboard() {
             <header className="bg-white/80 backdrop-blur-sm border-b border-gray-200/50 shadow-sm sticky top-0 z-40">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
                     <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                            <div className="w-10 h-10 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
-                                <FiDollarSign className="w-6 h-6 text-white" />
+                        <div className="flex items-center space-x-2 sm:space-x-3">
+                            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+                                <FiDollarSign className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                             </div>
-                            <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                                Expense Tracker
+                            <h1 className="text-lg sm:text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                                <span className="hidden sm:inline">Expense Tracker</span>
+                                <span className="sm:hidden">Expenses</span>
                             </h1>
                         </div>
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2 sm:gap-3">
                             <button
                                 onClick={() => router.push('/recurring')}
-                                className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg flex items-center gap-2"
+                                className="px-3 sm:px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg flex items-center gap-1 sm:gap-2"
+                                aria-label="Recurring"
                             >
                                 <FiRepeat className="w-4 h-4" />
-                                Recurring
+                                <span className="hidden sm:inline">Recurring</span>
+                            </button>
+                            <button
+                                onClick={() => router.push('/budgets')}
+                                className="px-3 sm:px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg flex items-center gap-1 sm:gap-2 relative"
+                                aria-label="Budgets"
+                            >
+                                <FiDollarSign className="w-4 h-4" />
+                                <span className="hidden sm:inline">Budgets</span>
+                                {budgetAlerts.length > 0 && (
+                                    <span className="absolute -top-1 -right-1 flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red-500 rounded-full border-2 border-white animate-pulse">
+                                        {budgetAlerts.length}
+                                    </span>
+                                )}
                             </button>
                             <button
                                 onClick={logout}
-                                className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-indigo-600 transition-colors duration-200"
+                                className="px-3 sm:px-4 py-2 text-sm font-medium text-gray-700 hover:text-indigo-600 transition-colors duration-200"
+                                aria-label="Logout"
                             >
-                                Logout
+                                <span className="hidden sm:inline">Logout</span>
+                                <span className="sm:hidden">Exit</span>
                             </button>
                         </div>
                     </div>
@@ -485,7 +621,7 @@ export default function Dashboard() {
                         <div className="h-[300px] flex items-center justify-center text-gray-500">
                             <div className="text-center">
                                 <svg className="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                                 </svg>
                                 <p>No spending data available for this month</p>
                             </div>
@@ -556,7 +692,104 @@ export default function Dashboard() {
                     )}
                 </section>
 
-                {/* 3. Transaction History */}
+                {/* 3. Budget Overview */}
+                {budgets.length > 0 && (
+                    <section className="bg-white/80 backdrop-blur-sm shadow-xl rounded-2xl p-6 border border-white/20">
+                        <div className="flex items-center justify-between mb-6">
+                            <div>
+                                <h2 className="text-xl font-bold text-gray-900 mb-1">Budget Overview</h2>
+                                <p className="text-sm text-gray-600">Track your spending against budgets</p>
+                            </div>
+                            <button
+                                onClick={() => router.push('/budgets')}
+                                className="px-4 py-2 text-sm font-medium text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-all duration-200 border border-indigo-200"
+                            >
+                                View All →
+                            </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {budgets.slice(0, 6).map((budget) => {
+                                const progress = Math.min((budget.current_spending / budget.amount) * 100, 100);
+                                const remaining = Math.max(0, budget.amount - budget.current_spending);
+
+                                let progressColor = 'bg-emerald-400';
+                                let bgColor = 'bg-emerald-50';
+                                let textColor = 'text-emerald-700';
+                                let borderColor = 'border-emerald-200';
+
+                                if (progress >= budget.alert_threshold) {
+                                    progressColor = 'bg-rose-400';
+                                    bgColor = 'bg-rose-50';
+                                    textColor = 'text-rose-700';
+                                    borderColor = 'border-rose-200';
+                                } else if (progress >= budget.alert_threshold * 0.8) {
+                                    progressColor = 'bg-amber-400';
+                                    bgColor = 'bg-amber-50';
+                                    textColor = 'text-amber-700';
+                                    borderColor = 'border-amber-200';
+                                }
+
+                                return (
+                                    <div
+                                        key={budget.id}
+                                        className={`${bgColor} border ${borderColor} rounded-xl p-4 hover:shadow-lg transition-all duration-200`}
+                                    >
+                                        <div className="flex items-start justify-between mb-3">
+                                            <div className="flex-1">
+                                                <h3 className="font-bold text-gray-900 text-sm mb-1">
+                                                    {budget.category_name}
+                                                </h3>
+                                                <span className="text-xs px-2 py-1 bg-white rounded-full text-gray-600 capitalize">
+                                                    {budget.period}
+                                                </span>
+                                            </div>
+                                            {progress >= budget.alert_threshold && (
+                                                <FiAlertTriangle className={`w-5 h-5 ${textColor} flex-shrink-0`} />
+                                            )}
+                                        </div>
+
+                                        <div className="mb-3">
+                                            <div className="flex items-baseline justify-between mb-2">
+                                                <span className={`text-2xl font-bold ${textColor}`}>
+                                                    ${budget.current_spending.toFixed(0)}
+                                                </span>
+                                                <span className="text-sm text-gray-600">
+                                                    / ${budget.amount.toFixed(0)}
+                                                </span>
+                                            </div>
+
+                                            <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden mb-2">
+                                                <div
+                                                    className={`h-full ${progressColor} transition-all duration-500`}
+                                                    style={{ width: `${progress}%` }}
+                                                />
+                                            </div>
+
+                                            <div className="flex items-center justify-between text-xs text-gray-600">
+                                                <span>{progress.toFixed(0)}% used</span>
+                                                <span className="font-semibold">${remaining.toFixed(0)} left</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {budgets.length > 6 && (
+                            <div className="text-center mt-4">
+                                <button
+                                    onClick={() => router.push('/budgets')}
+                                    className="text-sm text-indigo-600 hover:text-indigo-700 font-semibold"
+                                >
+                                    View {budgets.length - 6} more budgets →
+                                </button>
+                            </div>
+                        )}
+                    </section>
+                )}
+
+                {/* 4. Transaction History */}
                 <section className="bg-white/80 backdrop-blur-sm shadow-xl rounded-2xl p-6 border border-white/20">
                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
                         <div>
@@ -610,11 +843,34 @@ export default function Dashboard() {
                                 />
                             </div>
 
+                            {/* Amount Range Filter */}
+                            <div className="flex items-center gap-2 flex-1 sm:flex-initial">
+                                <input
+                                    type="number"
+                                    placeholder="Min $"
+                                    value={minAmount}
+                                    onChange={e => setMinAmount(e.target.value)}
+                                    className="w-full sm:w-24 px-3 py-2.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white text-gray-900 placeholder:text-gray-400 text-sm"
+                                    step="0.01"
+                                    min="0"
+                                />
+                                <span className="text-gray-400">-</span>
+                                <input
+                                    type="number"
+                                    placeholder="Max $"
+                                    value={maxAmount}
+                                    onChange={e => setMaxAmount(e.target.value)}
+                                    className="w-full sm:w-24 px-3 py-2.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white text-gray-900 placeholder:text-gray-400 text-sm"
+                                    step="0.01"
+                                    min="0"
+                                />
+                            </div>
+
                             {/* Sort Order */}
                             <select
                                 value={sortOrder}
                                 onChange={e => setSortOrder(e.target.value as 'date_desc' | 'date_asc')}
-                                className="px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white text-gray-900 font-medium"
+                                className="px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white text-gray-900 font-medium text-sm"
                             >
                                 <option value="date_desc">Newest First</option>
                                 <option value="date_asc">Oldest First</option>
@@ -647,9 +903,10 @@ export default function Dashboard() {
                                             <div
                                                 key={`${tx.id}-${index}-${tx.date}`}
                                                 data-transaction-date={tx.date}
-                                                className="group bg-white hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 transition-all duration-150 px-4 py-3"
+                                                className="group bg-white hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 transition-all duration-150 px-3 sm:px-4 py-3"
                                             >
-                                                <div className="flex items-center gap-3">
+                                                {/* Desktop Layout */}
+                                                <div className="hidden sm:flex items-center gap-3">
                                                     {/* Compact Date Badge */}
                                                     <div className="flex-shrink-0">
                                                         <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex flex-col items-center justify-center text-white shadow-sm">
@@ -701,6 +958,42 @@ export default function Dashboard() {
                                                             title="Delete transaction"
                                                         >
                                                             <FiTrash2 className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                {/* Mobile Layout */}
+                                                <div className="sm:hidden">
+                                                    <div className="flex items-start justify-between gap-3 mb-2">
+                                                        <div className="flex-1 min-w-0">
+                                                            <h4 className="text-sm font-semibold text-gray-900 truncate mb-1">
+                                                                {tx.description || 'No description'}
+                                                            </h4>
+                                                            <div className="flex items-center gap-2 flex-wrap">
+                                                                <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-indigo-100 text-indigo-700">
+                                                                    {tx.category}
+                                                                </span>
+                                                                <span className="text-xs text-gray-500">
+                                                                    {format(parseISO(tx.date), 'MMM dd, yyyy')}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                        <div className={`text-lg font-bold flex-shrink-0 ${isExpense ? 'text-red-600' : 'text-green-600'}`}>
+                                                            {isExpense ? '-' : '+'}{formatCurrency(Math.abs(tx.amount))}
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <button
+                                                            onClick={() => handleEdit(tx.id)}
+                                                            className="flex-1 px-3 py-1.5 rounded-lg text-sm font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition-all duration-150"
+                                                        >
+                                                            Edit
+                                                        </button>
+                                                        <button
+                                                            onClick={() => setDeleteConfirm(tx)}
+                                                            className="flex-1 px-3 py-1.5 rounded-lg text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 transition-all duration-150"
+                                                        >
+                                                            Delete
                                                         </button>
                                                     </div>
                                                 </div>
@@ -785,7 +1078,7 @@ export default function Dashboard() {
             {showScrollTop && (
                 <button
                     onClick={scrollToTop}
-                    className="fixed bottom-24 right-6 p-3 bg-white border-2 border-indigo-200 text-indigo-600 rounded-full shadow-xl hover:bg-indigo-50 hover:border-indigo-300 focus:outline-none focus:ring-4 focus:ring-indigo-500/50 transition-all duration-200 transform hover:scale-110 z-40 animate-fade-in"
+                    className="fixed bottom-20 right-4 sm:bottom-24 sm:right-6 p-3 bg-white border-2 border-indigo-200 text-indigo-600 rounded-full shadow-xl hover:bg-indigo-50 hover:border-indigo-300 focus:outline-none focus:ring-4 focus:ring-indigo-500/50 transition-all duration-200 transform hover:scale-110 z-40 animate-fade-in"
                     aria-label="Scroll to top"
                 >
                     <FiArrowUp className="w-5 h-5" />
@@ -794,12 +1087,112 @@ export default function Dashboard() {
 
             {/* Floating Add Transaction Button */}
             <button
-                onClick={() => router.push('/transaction/add')}
+                onClick={() => {
+                    setEditingTransaction(null);
+                    setShowTransactionModal(true);
+                }}
                 aria-label="Add transaction"
-                className="fixed bottom-6 right-6 p-5 rounded-full shadow-2xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-700 hover:to-purple-700 focus:outline-none focus:ring-4 focus:ring-indigo-500/50 transition-all duration-200 transform hover:scale-110 active:scale-95 z-50"
+                className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 p-4 sm:p-5 rounded-full shadow-2xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-700 hover:to-purple-700 focus:outline-none focus:ring-4 focus:ring-indigo-500/50 transition-all duration-200 transform hover:scale-110 active:scale-95 z-50"
             >
                 <FiPlus size={28} />
             </button>
+
+            {/* Toast Notification for Budget Alerts */}
+            {showToast && budgetAlerts.length > 0 && (
+                <div className="fixed top-16 left-4 right-4 sm:top-20 sm:left-auto sm:right-6 max-w-md bg-white rounded-2xl shadow-2xl border-2 border-red-200 p-4 z-50 animate-fade-in">
+                    <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0 p-2 bg-red-100 rounded-full">
+                            <FiBell className="w-5 h-5 text-red-600" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between mb-1">
+                                <h4 className="text-sm font-bold text-gray-900">Budget Alert!</h4>
+                                <button
+                                    onClick={() => setShowToast(false)}
+                                    className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+                                    aria-label="Close notification"
+                                >
+                                    <FiX className="w-4 h-4 text-gray-500" />
+                                </button>
+                            </div>
+                            <p className="text-sm text-gray-700 mb-3">
+                                {budgetAlerts.length === 1
+                                    ? `You have 1 budget that has exceeded its alert threshold.`
+                                    : `You have ${budgetAlerts.length} budgets that have exceeded their alert thresholds.`
+                                }
+                            </p>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => {
+                                        setShowToast(false);
+                                        router.push('/budgets');
+                                    }}
+                                    className="flex-1 px-3 py-2 text-xs font-semibold text-white bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg"
+                                >
+                                    View Budgets
+                                </button>
+                                <button
+                                    onClick={() => setShowToast(false)}
+                                    className="px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                                >
+                                    Dismiss
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Add/Edit Transaction Modal */}
+            {showTransactionModal && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+                        {/* Modal Header */}
+                        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-t-2xl z-10">
+                            <h2 className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                                {editingTransaction ? 'Edit Transaction' : 'Add Transaction'}
+                            </h2>
+                            <button
+                                onClick={() => {
+                                    setShowTransactionModal(false);
+                                    setEditingTransaction(null);
+                                }}
+                                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                            >
+                                <FiX className="w-5 h-5 text-gray-500" />
+                            </button>
+                        </div>
+
+                        {/* Modal Body */}
+                        <div className="p-6">
+                            {token && (
+                                <TransactionForm
+                                    token={token}
+                                    categories={categories}
+                                    setCategories={setCategories}
+                                    onSuccess={() => {
+                                        setShowTransactionModal(false);
+                                        setEditingTransaction(null);
+                                        setRefreshTrigger(prev => prev + 1);
+                                    }}
+                                    onCancel={() => {
+                                        setShowTransactionModal(false);
+                                        setEditingTransaction(null);
+                                    }}
+                                    initialValues={editingTransaction ? {
+                                        id: editingTransaction.id,
+                                        category_id: undefined,
+                                        category_name: editingTransaction.category,
+                                        amount: editingTransaction.amount,
+                                        description: editingTransaction.description,
+                                        date: editingTransaction.date,
+                                    } : undefined}
+                                />
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
