@@ -622,7 +622,7 @@ export default function Dashboard() {
                             <p className="text-sm text-gray-400 mt-1">Try adjusting your filters or add a new transaction</p>
                         </div>
                     ) : (
-                        <div className="relative">
+                        <div>
                             {/* Scrollable Container */}
                             <div
                                 ref={scrollContainerRef}
@@ -700,17 +700,6 @@ export default function Dashboard() {
                                     })}
                                 </div>
                             </div>
-
-                            {/* Scroll to Top Button */}
-                            {showScrollTop && (
-                                <button
-                                    onClick={scrollToTop}
-                                    className="absolute bottom-4 right-4 p-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-full shadow-2xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 transform hover:scale-110 z-10 animate-fade-in"
-                                    aria-label="Scroll to top"
-                                >
-                                    <FiArrowUp className="w-5 h-5" />
-                                </button>
-                            )}
                         </div>
                     )}
 
@@ -781,6 +770,17 @@ export default function Dashboard() {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Scroll to Top Button - Fixed to Viewport */}
+            {showScrollTop && (
+                <button
+                    onClick={scrollToTop}
+                    className="fixed bottom-24 right-6 p-3 bg-white border-2 border-indigo-200 text-indigo-600 rounded-full shadow-xl hover:bg-indigo-50 hover:border-indigo-300 focus:outline-none focus:ring-4 focus:ring-indigo-500/50 transition-all duration-200 transform hover:scale-110 z-40 animate-fade-in"
+                    aria-label="Scroll to top"
+                >
+                    <FiArrowUp className="w-5 h-5" />
+                </button>
             )}
 
             {/* Floating Add Transaction Button */}
