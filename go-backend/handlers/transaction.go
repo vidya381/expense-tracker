@@ -3,13 +3,36 @@ package handlers
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/vidya381/expense-tracker-backend/models"
 )
 
+// verifyCategoryOwnership checks if a category belongs to the user
+func verifyCategoryOwnership(db *sql.DB, userID, categoryID int) error {
+	if categoryID == 0 {
+		return nil // Allow no category
+	}
+	var count int
+	err := db.QueryRow("SELECT COUNT(*) FROM categories WHERE id = $1 AND user_id = $2",
+		categoryID, userID).Scan(&count)
+	if err != nil {
+		return err
+	}
+	if count == 0 {
+		return errors.New("category not found or unauthorized")
+	}
+	return nil
+}
+
 // Create a new transaction for the user
 func AddTransaction(db *sql.DB, tx models.Transaction) error {
+	// Verify category ownership
+	if err := verifyCategoryOwnership(db, tx.UserID, tx.CategoryID); err != nil {
+		return err
+	}
+
 	query := `INSERT INTO transactions (user_id, category_id, amount, description, date)
 			  VALUES ($1, $2, $3, $4, $5)`
 	_, err := db.ExecContext(context.Background(), query,
