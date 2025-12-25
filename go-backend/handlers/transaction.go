@@ -1,12 +1,12 @@
 package handlers
 
 import (
-	"context"
 	"database/sql"
 	"errors"
 	"fmt"
 
 	"github.com/vidya381/expense-tracker-backend/models"
+	"github.com/vidya381/expense-tracker-backend/utils"
 )
 
 // verifyCategoryOwnership checks if a category belongs to the user
@@ -33,18 +33,24 @@ func AddTransaction(db *sql.DB, tx models.Transaction) error {
 		return err
 	}
 
+	ctx, cancel := utils.DBContext()
+	defer cancel()
+
 	query := `INSERT INTO transactions (user_id, category_id, amount, description, date)
 			  VALUES ($1, $2, $3, $4, $5)`
-	_, err := db.ExecContext(context.Background(), query,
+	_, err := db.ExecContext(ctx, query,
 		tx.UserID, tx.CategoryID, tx.Amount, tx.Description, tx.Date)
 	return err
 }
 
 // Fetch all transactions for a user
 func ListTransactions(db *sql.DB, userID int) ([]models.Transaction, error) {
-	rows, err := db.QueryContext(context.Background(),
+	ctx, cancel := utils.DBContext()
+	defer cancel()
+
+	rows, err := db.QueryContext(ctx,
 		`
-        SELECT 
+        SELECT
             t.id,
             t.user_id,
             t.category_id,
@@ -91,10 +97,13 @@ func UpdateTransaction(db *sql.DB, tx models.Transaction) error {
 		return err
 	}
 
+	ctx, cancel := utils.DBContext()
+	defer cancel()
+
 	query := `UPDATE transactions
 			  SET amount = $1, description = $2, category_id = $3, date = $4
 			  WHERE id = $5 AND user_id = $6`
-	result, err := db.ExecContext(context.Background(), query,
+	result, err := db.ExecContext(ctx, query,
 		tx.Amount, tx.Description, tx.CategoryID, tx.Date, tx.ID, tx.UserID)
 	if err != nil {
 		return err
@@ -114,7 +123,10 @@ func UpdateTransaction(db *sql.DB, tx models.Transaction) error {
 
 // Delete a transaction
 func DeleteTransaction(db *sql.DB, id, userID int) error {
-	result, err := db.ExecContext(context.Background(),
+	ctx, cancel := utils.DBContext()
+	defer cancel()
+
+	result, err := db.ExecContext(ctx,
 		`DELETE FROM transactions WHERE id = $1 AND user_id = $2`, id, userID)
 	if err != nil {
 		return err
@@ -218,7 +230,10 @@ func FilterTransactionsPaginated(
 	base += fmt.Sprintf(" LIMIT $%d OFFSET $%d", argpos, argpos+1)
 	args = append(args, limit, offset)
 
-	rows, err := db.QueryContext(context.Background(), base, args...)
+	ctx, cancel := utils.DBContext()
+	defer cancel()
+
+	rows, err := db.QueryContext(ctx, base, args...)
 	if err != nil {
 		return nil, err
 	}

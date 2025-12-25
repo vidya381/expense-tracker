@@ -1,13 +1,13 @@
 package handlers
 
 import (
-	"context"
 	"database/sql"
 	"errors"
 	"fmt"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/vidya381/expense-tracker-backend/utils"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -46,7 +46,9 @@ func RegisterUser(db *sql.DB, username, email, password string) error {
 
 	// Insert into users table
 	query := `INSERT INTO users (username, email, password) VALUES ($1, $2, $3)`
-	_, err = db.ExecContext(context.Background(), query, username, email, string(hashedPassword))
+	ctx, cancel := utils.DBContext()
+	defer cancel()
+	_, err = db.ExecContext(ctx, query, username, email, string(hashedPassword))
 	if err != nil {
 		return fmt.Errorf("error inserting user: %w", err)
 	}
