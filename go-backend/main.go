@@ -160,12 +160,12 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	if len(password) < 4 {
+	if len(password) < 8 {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
-			"error":   "Password must be at least 4 characters",
+			"error":   "Password must be at least 8 characters",
 		})
 		return
 	}
