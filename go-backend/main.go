@@ -101,8 +101,14 @@ func main() {
 	mux.HandleFunc("/budget/delete", middleware.RequireAuth(jwtSecret, deleteBudgetHandler))
 	mux.HandleFunc("/budget/alerts", middleware.RequireAuth(jwtSecret, budgetAlertsHandler))
 
+	// Get CORS origin from environment or use default
+	corsOrigin := os.Getenv("CORS_ORIGIN")
+	if corsOrigin == "" {
+		corsOrigin = "http://localhost:3000"
+	}
+
 	corsHandler := cors.New(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:3000"},
+		AllowedOrigins:   []string{corsOrigin},
 		AllowedHeaders:   []string{"Authorization", "Content-Type"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowCredentials: true,
