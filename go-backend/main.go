@@ -928,9 +928,28 @@ func addBudgetHandler(w http.ResponseWriter, r *http.Request) {
 		period = "monthly"
 	}
 
-	alertThreshold, _ := strconv.Atoi(r.FormValue("alert_threshold"))
-	if alertThreshold == 0 {
-		alertThreshold = 80 // default to 80%
+	// Validate alert threshold
+	alertThreshold := 80 // default
+	alertThresholdStr := r.FormValue("alert_threshold")
+	if alertThresholdStr != "" {
+		threshold, err := strconv.Atoi(alertThresholdStr)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": false,
+				"error":   "Alert threshold must be a valid number",
+			})
+			return
+		}
+		if threshold < 0 || threshold > 100 {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": false,
+				"error":   "Alert threshold must be between 0 and 100",
+			})
+			return
+		}
+		alertThreshold = threshold
 	}
 
 	budget := models.Budget{
@@ -1020,9 +1039,23 @@ func updateBudgetHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validate alert threshold (required for update)
 	alertThreshold, err := strconv.Atoi(r.FormValue("alert_threshold"))
 	if err != nil {
-		alertThreshold = 80
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Alert threshold must be a valid number",
+		})
+		return
+	}
+	if alertThreshold < 0 || alertThreshold > 100 {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Alert threshold must be between 0 and 100",
+		})
+		return
 	}
 
 	err = handlers.UpdateBudget(db, userID, budgetID, amount, alertThreshold)
