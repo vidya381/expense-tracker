@@ -36,13 +36,50 @@ func ListBudgets(db *sql.DB, userID int) ([]models.Budget, error) {
 	ctx, cancel := utils.DBContext()
 	defer cancel()
 
-	rows, err := db.QueryContext(ctx,
-		`SELECT b.id, b.user_id, b.category_id, b.amount, b.period, b.alert_threshold, b.created_at,
-		        COALESCE(c.name, 'Overall') as category_name
-		 FROM budgets b
-		 LEFT JOIN categories c ON b.category_id = c.id
-		 WHERE b.user_id = $1
-		 ORDER BY b.created_at DESC`, userID)
+	now := time.Now()
+	currentMonthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+	currentMonthEnd := currentMonthStart.AddDate(0, 1, 0).Add(-time.Second)
+	currentYearStart := time.Date(now.Year(), 1, 1, 0, 0, 0, 0, now.Location())
+	currentYearEnd := currentYearStart.AddDate(1, 0, 0).Add(-time.Second)
+
+	// Single query with lateral join to calculate spending for all budgets at once
+	query := `
+		SELECT
+			b.id,
+			b.user_id,
+			b.category_id,
+			b.amount,
+			b.period,
+			b.alert_threshold,
+			b.created_at,
+			COALESCE(c.name, 'Overall') as category_name,
+			COALESCE(spending.total, 0) as current_spending
+		FROM budgets b
+		LEFT JOIN categories c ON b.category_id = c.id
+		LEFT JOIN LATERAL (
+			SELECT COALESCE(SUM(t.amount), 0) as total
+			FROM transactions t
+			JOIN categories cat ON t.category_id = cat.id
+			WHERE t.user_id = b.user_id
+				AND (
+					-- Category-specific budget
+					(b.category_id > 0 AND t.category_id = b.category_id) OR
+					-- Overall budget (all expenses)
+					(b.category_id = 0 AND cat.type = 'expense')
+				)
+				AND (
+					-- Monthly period
+					(b.period = 'monthly' AND t.date >= $2 AND t.date <= $3) OR
+					-- Yearly period
+					(b.period = 'yearly' AND t.date >= $4 AND t.date <= $5)
+				)
+		) spending ON true
+		WHERE b.user_id = $1
+		ORDER BY b.created_at DESC`
+
+	rows, err := db.QueryContext(ctx, query, userID,
+		currentMonthStart.Format("2006-01-02"), currentMonthEnd.Format("2006-01-02"),
+		currentYearStart.Format("2006-01-02"), currentYearEnd.Format("2006-01-02"))
 	if err != nil {
 		return nil, err
 	}
@@ -53,65 +90,14 @@ func ListBudgets(db *sql.DB, userID int) ([]models.Budget, error) {
 		var b models.Budget
 		var createdAt time.Time
 		err := rows.Scan(&b.ID, &b.UserID, &b.CategoryID, &b.Amount, &b.Period,
-			&b.AlertThreshold, &createdAt, &b.CategoryName)
+			&b.AlertThreshold, &createdAt, &b.CategoryName, &b.CurrentSpending)
 		if err != nil {
 			return nil, err
 		}
 		b.CreatedAt = createdAt.Format("2006-01-02")
-
-		// Calculate current spending for this budget period
-		spending, err := calculateCurrentSpending(db, userID, b.CategoryID, b.Period)
-		if err != nil {
-			return nil, err
-		}
-		b.CurrentSpending = spending
-
 		budgets = append(budgets, b)
 	}
 	return budgets, nil
-}
-
-// calculateCurrentSpending calculates spending for the current period
-func calculateCurrentSpending(db *sql.DB, userID int, categoryID int, period string) (float64, error) {
-	now := time.Now()
-	var startDate, endDate time.Time
-
-	if period == "monthly" {
-		// Current month
-		startDate = time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
-		endDate = startDate.AddDate(0, 1, 0).Add(-time.Second)
-	} else {
-		// Current year
-		startDate = time.Date(now.Year(), 1, 1, 0, 0, 0, 0, now.Location())
-		endDate = startDate.AddDate(1, 0, 0).Add(-time.Second)
-	}
-
-	var query string
-	var args []interface{}
-
-	if categoryID == 0 {
-		// Overall budget - sum all expenses
-		query = `SELECT COALESCE(SUM(t.amount), 0)
-		         FROM transactions t
-		         JOIN categories c ON t.category_id = c.id
-		         WHERE t.user_id = $1 AND c.type = 'expense'
-		         AND t.date >= $2 AND t.date <= $3`
-		args = []interface{}{userID, startDate.Format("2006-01-02"), endDate.Format("2006-01-02")}
-	} else {
-		// Category-specific budget
-		query = `SELECT COALESCE(SUM(amount), 0)
-		         FROM transactions
-		         WHERE user_id = $1 AND category_id = $2
-		         AND date >= $3 AND date <= $4`
-		args = []interface{}{userID, categoryID, startDate.Format("2006-01-02"), endDate.Format("2006-01-02")}
-	}
-
-	ctx, cancel := utils.DBContext()
-	defer cancel()
-
-	var spending float64
-	err := db.QueryRowContext(ctx, query, args...).Scan(&spending)
-	return spending, err
 }
 
 // UpdateBudget updates an existing budget
