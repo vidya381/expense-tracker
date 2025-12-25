@@ -11,6 +11,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/rs/cors"
 	"github.com/vidya381/expense-tracker-backend/handlers"
@@ -52,6 +53,12 @@ func main() {
 	if err := db.Ping(); err != nil {
 		panic("Failed to ping DB: " + err.Error())
 	}
+
+	// Configure connection pool
+	db.SetMaxOpenConns(25)                           // Maximum number of open connections
+	db.SetMaxIdleConns(10)                           // Maximum number of idle connections
+	db.SetConnMaxLifetime(5 * time.Minute)           // Maximum lifetime of a connection
+	db.SetConnMaxIdleTime(2 * time.Minute)           // Maximum idle time before closing
 
 	fmt.Println("Connected to PostgreSQL successfully!")
 
