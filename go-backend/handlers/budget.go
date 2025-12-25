@@ -111,20 +111,46 @@ func UpdateBudget(db *sql.DB, userID, budgetID int, amount float64, alertThresho
 		return fmt.Errorf("alert threshold must be between 0 and 100")
 	}
 
-	_, err := db.ExecContext(context.Background(),
+	result, err := db.ExecContext(context.Background(),
 		`UPDATE budgets
 		 SET amount = $1, alert_threshold = $2
 		 WHERE id = $3 AND user_id = $4`,
 		amount, alertThreshold, budgetID, userID)
-	return err
+	if err != nil {
+		return err
+	}
+
+	// Check if any rows were actually updated
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return fmt.Errorf("budget not found or unauthorized")
+	}
+
+	return nil
 }
 
 // DeleteBudget removes a budget
 func DeleteBudget(db *sql.DB, budgetID, userID int) error {
-	_, err := db.ExecContext(context.Background(),
+	result, err := db.ExecContext(context.Background(),
 		`DELETE FROM budgets WHERE id = $1 AND user_id = $2`,
 		budgetID, userID)
-	return err
+	if err != nil {
+		return err
+	}
+
+	// Check if any rows were actually deleted
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return fmt.Errorf("budget not found or unauthorized")
+	}
+
+	return nil
 }
 
 // GetBudgetAlerts returns budgets that have exceeded their alert threshold
