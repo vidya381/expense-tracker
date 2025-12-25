@@ -13,20 +13,24 @@ func ValidateDate(dateStr string) error {
 		return fmt.Errorf("date is required")
 	}
 
-	// Parse the date in YYYY-MM-DD format
+	// Parse the date in YYYY-MM-DD format (returns UTC time at 00:00:00)
 	parsedDate, err := time.Parse("2006-01-02", dateStr)
 	if err != nil {
 		return fmt.Errorf("invalid date format. Expected YYYY-MM-DD (e.g., 2025-12-25)")
 	}
 
+	// Use UTC and truncate to date-only for consistent comparison across timezones
+	now := time.Now().UTC()
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+
 	// Check if the date is not too far in the past (more than 10 years)
-	tenYearsAgo := time.Now().AddDate(-10, 0, 0)
+	tenYearsAgo := today.AddDate(-10, 0, 0)
 	if parsedDate.Before(tenYearsAgo) {
 		return fmt.Errorf("date cannot be more than 10 years in the past")
 	}
 
 	// Check if the date is not in the future (more than 1 day)
-	tomorrow := time.Now().AddDate(0, 0, 1)
+	tomorrow := today.AddDate(0, 0, 1)
 	if parsedDate.After(tomorrow) {
 		return fmt.Errorf("date cannot be in the future")
 	}
@@ -55,20 +59,24 @@ func ValidateRecurringDate(dateStr string) error {
 		return fmt.Errorf("start date is required")
 	}
 
-	// Parse the date in YYYY-MM-DD format
+	// Parse the date in YYYY-MM-DD format (returns UTC time at 00:00:00)
 	parsedDate, err := time.Parse("2006-01-02", dateStr)
 	if err != nil {
 		return fmt.Errorf("invalid start date format. Expected YYYY-MM-DD (e.g., 2025-12-25)")
 	}
 
+	// Use UTC and truncate to date-only for consistent comparison across timezones
+	now := time.Now().UTC()
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+
 	// Start date should not be too far in the future (more than 1 year)
-	oneYearFromNow := time.Now().AddDate(1, 0, 0)
+	oneYearFromNow := today.AddDate(1, 0, 0)
 	if parsedDate.After(oneYearFromNow) {
 		return fmt.Errorf("start date cannot be more than 1 year in the future")
 	}
 
 	// Start date should not be too far in the past (more than 5 years)
-	fiveYearsAgo := time.Now().AddDate(-5, 0, 0)
+	fiveYearsAgo := today.AddDate(-5, 0, 0)
 	if parsedDate.Before(fiveYearsAgo) {
 		return fmt.Errorf("start date cannot be more than 5 years in the past")
 	}

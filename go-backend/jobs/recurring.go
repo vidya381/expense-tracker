@@ -65,6 +65,7 @@ func ProcessRecurringTransactions(db *sql.DB) {
 		return
 	}
 	defer rows.Close()
+	// Use UTC and truncate to midnight for consistent date-only comparison across timezones
 	now := time.Now().UTC().Truncate(24 * time.Hour)
 
 	for rows.Next() {

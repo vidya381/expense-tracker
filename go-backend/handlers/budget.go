@@ -37,10 +37,11 @@ func ListBudgets(db *sql.DB, userID int) ([]models.Budget, error) {
 	ctx, cancel := utils.DBContext()
 	defer cancel()
 
-	now := time.Now()
-	currentMonthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+	// Use UTC for all date calculations to avoid timezone issues
+	now := time.Now().UTC()
+	currentMonthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
 	currentMonthEnd := currentMonthStart.AddDate(0, 1, 0).Add(-time.Second)
-	currentYearStart := time.Date(now.Year(), 1, 1, 0, 0, 0, 0, now.Location())
+	currentYearStart := time.Date(now.Year(), 1, 1, 0, 0, 0, 0, time.UTC)
 	currentYearEnd := currentYearStart.AddDate(1, 0, 0).Add(-time.Second)
 
 	// Single query with lateral join to calculate spending for all budgets at once
