@@ -416,55 +416,48 @@ func listCategoryHandler(w http.ResponseWriter, r *http.Request) {
 
 // Add a new transaction via POST
 func addTransactionHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
 	if r.Method != http.MethodPost {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": false,
-			"error":   "Only POST allowed",
-		})
+		utils.RespondWithMethodNotAllowed(w, "POST")
 		return
 	}
 
 	userID, ok := middleware.GetUserID(r)
 	if !ok {
-		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": false,
-			"error":   "User not authenticated",
-		})
+		utils.RespondWithUnauthorized(w, "User not authenticated")
 		return
 	}
 
+	// Validate category_id
 	categoryID, err := strconv.Atoi(r.FormValue("category_id"))
 	if err != nil || categoryID <= 0 {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": false,
-			"error":   "Valid category_id is required",
-		})
+		utils.RespondWithValidationError(w, "Valid category_id is required (must be a positive number)")
 		return
 	}
-	amount, err := strconv.ParseFloat(r.FormValue("amount"), 64)
-	if err != nil || amount <= 0 {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": false,
-			"error":   "Amount must be a number greater than zero",
-		})
+
+	// Validate amount
+	amountStr := r.FormValue("amount")
+	if amountStr == "" {
+		utils.RespondWithValidationError(w, "Amount is required")
 		return
 	}
-	description := utils.SanitizeDescription(r.FormValue("description"))
+	amount, err := strconv.ParseFloat(amountStr, 64)
+	if err != nil {
+		utils.RespondWithValidationError(w, "Amount must be a valid number")
+		return
+	}
+	if err := utils.ValidateAmount(amount); err != nil {
+		utils.RespondWithValidationError(w, err.Error())
+		return
+	}
+
+	// Validate date format
 	date := r.FormValue("date")
-	if date == "" {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": false,
-			"error":   "Transaction date is required",
-		})
+	if err := utils.ValidateTransactionDate(date); err != nil {
+		utils.RespondWithValidationError(w, err.Error())
 		return
 	}
+
+	description := utils.SanitizeDescription(r.FormValue("description"))
 
 	tx := models.Transaction{
 		UserID:      userID,
@@ -476,19 +469,16 @@ func addTransactionHandler(w http.ResponseWriter, r *http.Request) {
 
 	err = handlers.AddTransaction(db, tx)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": false,
-			"error":   "Error adding transaction: " + err.Error(),
-		})
+		// Check if it's a category ownership error
+		if err.Error() == "category not found or unauthorized" {
+			utils.RespondWithValidationError(w, "Invalid category or you don't have permission to use this category")
+			return
+		}
+		utils.RespondWithInternalError(w, err, "Add transaction")
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"success": true,
-		"message": "Transaction added successfully",
-	})
+	utils.RespondWithSuccess(w, http.StatusCreated, "Transaction added successfully", nil)
 }
 
 // List all transactions for a user (GET)
@@ -530,63 +520,55 @@ func listTransactionHandler(w http.ResponseWriter, r *http.Request) {
 
 // Update an existing transaction (POST)
 func updateTransactionHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
 	if r.Method != http.MethodPost {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": false,
-			"error":   "Only POST allowed",
-		})
+		utils.RespondWithMethodNotAllowed(w, "POST")
 		return
 	}
+
 	userID, ok := middleware.GetUserID(r)
 	if !ok {
-		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": false,
-			"error":   "User not found in context",
-		})
+		utils.RespondWithUnauthorized(w, "User not authenticated")
 		return
 	}
 
+	// Validate transaction ID
 	id, err := strconv.Atoi(r.FormValue("id"))
 	if err != nil || id <= 0 {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": false,
-			"error":   "Valid transaction ID is required",
-		})
+		utils.RespondWithValidationError(w, "Valid transaction ID is required (must be a positive number)")
 		return
 	}
+
+	// Validate category_id
 	categoryID, err := strconv.Atoi(r.FormValue("category_id"))
 	if err != nil || categoryID <= 0 {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": false,
-			"error":   "Valid category_id is required",
-		})
+		utils.RespondWithValidationError(w, "Valid category_id is required (must be a positive number)")
 		return
 	}
-	amount, err := strconv.ParseFloat(r.FormValue("amount"), 64)
-	if err != nil || amount <= 0 {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": false,
-			"error":   "Amount must be a number greater than zero",
-		})
+
+	// Validate amount
+	amountStr := r.FormValue("amount")
+	if amountStr == "" {
+		utils.RespondWithValidationError(w, "Amount is required")
 		return
 	}
-	description := utils.SanitizeDescription(r.FormValue("description"))
+	amount, err := strconv.ParseFloat(amountStr, 64)
+	if err != nil {
+		utils.RespondWithValidationError(w, "Amount must be a valid number")
+		return
+	}
+	if err := utils.ValidateAmount(amount); err != nil {
+		utils.RespondWithValidationError(w, err.Error())
+		return
+	}
+
+	// Validate date format
 	date := r.FormValue("date")
-	if date == "" {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": false,
-			"error":   "Transaction date is required",
-		})
+	if err := utils.ValidateTransactionDate(date); err != nil {
+		utils.RespondWithValidationError(w, err.Error())
 		return
 	}
+
+	description := utils.SanitizeDescription(r.FormValue("description"))
 
 	tx := models.Transaction{
 		ID:          id,
@@ -599,19 +581,15 @@ func updateTransactionHandler(w http.ResponseWriter, r *http.Request) {
 
 	err = handlers.UpdateTransaction(db, tx)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": false,
-			"error":   "Error updating transaction: " + err.Error(),
-		})
+		if err.Error() == "category not found or unauthorized" {
+			utils.RespondWithValidationError(w, "Invalid category or you don't have permission to use this category")
+			return
+		}
+		utils.RespondWithInternalError(w, err, "Update transaction")
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"success": true,
-		"message": "Transaction updated successfully",
-	})
+	utils.RespondWithSuccess(w, http.StatusOK, "Transaction updated successfully", nil)
 }
 
 // Delete a transaction (POST)
@@ -789,29 +767,65 @@ func exportTransactionsHandler(w http.ResponseWriter, r *http.Request) {
 
 // User to add a recurring transaction.
 func addRecurringHandler(w http.ResponseWriter, r *http.Request) {
-	userID, ok := middleware.GetUserID(r)
-	if !ok {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+	if r.Method != http.MethodPost {
+		utils.RespondWithMethodNotAllowed(w, "POST")
 		return
 	}
 
+	userID, ok := middleware.GetUserID(r)
+	if !ok {
+		utils.RespondWithUnauthorized(w, "User not authenticated")
+		return
+	}
+
+	// Validate category_id
 	categoryID, err := strconv.Atoi(r.FormValue("category_id"))
 	if err != nil || categoryID <= 0 {
-		http.Error(w, "Valid category_id is required", http.StatusBadRequest)
+		utils.RespondWithValidationError(w, "Valid category_id is required (must be a positive number)")
 		return
 	}
-	amount, err := strconv.ParseFloat(r.FormValue("amount"), 64)
-	if err != nil || amount <= 0 {
-		http.Error(w, "Amount must be a positive number", http.StatusBadRequest)
+
+	// Validate amount
+	amountStr := r.FormValue("amount")
+	if amountStr == "" {
+		utils.RespondWithValidationError(w, "Amount is required")
 		return
 	}
-	description := utils.SanitizeDescription(r.FormValue("description"))
+	amount, err := strconv.ParseFloat(amountStr, 64)
+	if err != nil {
+		utils.RespondWithValidationError(w, "Amount must be a valid number")
+		return
+	}
+	if err := utils.ValidateAmount(amount); err != nil {
+		utils.RespondWithValidationError(w, err.Error())
+		return
+	}
+
+	// Validate start date format
 	startDate := r.FormValue("start_date")
-	recurrence := strings.ToLower(strings.TrimSpace(r.FormValue("recurrence")))
-	if startDate == "" || recurrence == "" {
-		http.Error(w, "start_date and recurrence are required", http.StatusBadRequest)
+	if err := utils.ValidateRecurringDate(startDate); err != nil {
+		utils.RespondWithValidationError(w, err.Error())
 		return
 	}
+
+	// Validate recurrence
+	recurrence := strings.ToLower(strings.TrimSpace(r.FormValue("recurrence")))
+	if recurrence == "" {
+		utils.RespondWithValidationError(w, "Recurrence is required")
+		return
+	}
+	validRecurrence := map[string]bool{
+		"daily":   true,
+		"weekly":  true,
+		"monthly": true,
+		"yearly":  true,
+	}
+	if !validRecurrence[recurrence] {
+		utils.RespondWithValidationError(w, "Recurrence must be one of: daily, weekly, monthly, yearly")
+		return
+	}
+
+	description := utils.SanitizeDescription(r.FormValue("description"))
 
 	rt := models.RecurringTransaction{
 		UserID:      userID,
@@ -824,11 +838,15 @@ func addRecurringHandler(w http.ResponseWriter, r *http.Request) {
 
 	err = handlers.AddRecurringTransaction(db, rt)
 	if err != nil {
-		http.Error(w, "Failed to add recurring transaction: "+err.Error(), http.StatusBadRequest)
+		if err.Error() == "category not found or unauthorized" {
+			utils.RespondWithValidationError(w, "Invalid category or you don't have permission to use this category")
+			return
+		}
+		utils.RespondWithInternalError(w, err, "Add recurring transaction")
 		return
 	}
 
-	w.Write([]byte("Recurring transaction added!"))
+	utils.RespondWithSuccess(w, http.StatusCreated, "Recurring transaction added successfully", nil)
 }
 
 // Returns all recurring transactions for the authenticated user
@@ -904,22 +922,34 @@ func deleteRecurringHandler(w http.ResponseWriter, r *http.Request) {
 func searchAndFilterTransactionsHandler(w http.ResponseWriter, r *http.Request) {
 	userID, ok := middleware.GetUserID(r)
 	if !ok {
-		jsonError(w, "Unauthorized", http.StatusUnauthorized)
+		utils.RespondWithUnauthorized(w, "User not authenticated")
 		return
 	}
 
-	// Pagination
-	limit := 20
+	// Pagination with validation
+	limit := 20 // default
 	if l := r.URL.Query().Get("limit"); l != "" {
-		if v, err := strconv.Atoi(l); err == nil && v > 0 && v <= 10000 {
-			limit = v
+		v, err := strconv.Atoi(l)
+		if err != nil {
+			utils.RespondWithValidationError(w, "Invalid limit parameter: must be a number")
+			return
 		}
+		limit = v
 	}
 	offset := 0
 	if o := r.URL.Query().Get("offset"); o != "" {
-		if v, err := strconv.Atoi(o); err == nil && v >= 0 {
-			offset = v
+		v, err := strconv.Atoi(o)
+		if err != nil {
+			utils.RespondWithValidationError(w, "Invalid offset parameter: must be a number")
+			return
 		}
+		offset = v
+	}
+
+	// Validate pagination parameters
+	if err := utils.ValidatePaginationParams(limit, offset); err != nil {
+		utils.RespondWithValidationError(w, err.Error())
+		return
 	}
 
 	// Sorting
@@ -948,45 +978,62 @@ func searchAndFilterTransactionsHandler(w http.ResponseWriter, r *http.Request) 
 		db, userID, keyword, categoryID, dateFrom, dateTo, amountMin, amountMax, orderBy, limit, offset,
 	)
 	if err != nil {
-		jsonError(w, "Search error: "+err.Error(), http.StatusInternalServerError)
+		utils.RespondWithInternalError(w, err, "Search transactions")
 		return
 	}
-	json.NewEncoder(w).Encode(list)
+
+	utils.RespondWithJSON(w, http.StatusOK, map[string]interface{}{
+		"success":      true,
+		"transactions": list,
+		"limit":        limit,
+		"offset":       offset,
+	})
 }
 
 // Budget handlers
 func addBudgetHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
 	if r.Method != http.MethodPost {
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": false,
-			"error":   "Only POST allowed",
-		})
+		utils.RespondWithMethodNotAllowed(w, "POST")
 		return
 	}
 
 	userID, ok := middleware.GetUserID(r)
 	if !ok {
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": false,
-			"error":   "Unauthorized",
-		})
+		utils.RespondWithUnauthorized(w, "User not authenticated")
 		return
 	}
 
-	categoryID, _ := strconv.Atoi(r.FormValue("category_id"))
-	amount, err := strconv.ParseFloat(r.FormValue("amount"), 64)
-	if err != nil || amount <= 0 {
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": false,
-			"error":   "Valid amount is required",
-		})
+	// Validate category_id (0 means overall budget, > 0 means category-specific)
+	categoryID, err := strconv.Atoi(r.FormValue("category_id"))
+	if err != nil || categoryID < 0 {
+		utils.RespondWithValidationError(w, "Valid category_id is required (0 for overall budget, or a positive number for category-specific budget)")
 		return
 	}
 
-	period := strings.ToLower(r.FormValue("period"))
+	// Validate amount
+	amountStr := r.FormValue("amount")
+	if amountStr == "" {
+		utils.RespondWithValidationError(w, "Amount is required")
+		return
+	}
+	amount, err := strconv.ParseFloat(amountStr, 64)
+	if err != nil {
+		utils.RespondWithValidationError(w, "Amount must be a valid number")
+		return
+	}
+	if err := utils.ValidateAmount(amount); err != nil {
+		utils.RespondWithValidationError(w, err.Error())
+		return
+	}
+
+	// Validate period
+	period := strings.ToLower(strings.TrimSpace(r.FormValue("period")))
 	if period == "" {
 		period = "monthly"
+	}
+	if period != "monthly" && period != "yearly" {
+		utils.RespondWithValidationError(w, "Period must be 'monthly' or 'yearly'")
+		return
 	}
 
 	// Validate alert threshold
@@ -995,19 +1042,11 @@ func addBudgetHandler(w http.ResponseWriter, r *http.Request) {
 	if alertThresholdStr != "" {
 		threshold, err := strconv.Atoi(alertThresholdStr)
 		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"success": false,
-				"error":   "Alert threshold must be a valid number",
-			})
+			utils.RespondWithValidationError(w, "Alert threshold must be a valid number")
 			return
 		}
 		if threshold < 0 || threshold > 100 {
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"success": false,
-				"error":   "Alert threshold must be between 0 and 100",
-			})
+			utils.RespondWithValidationError(w, "Alert threshold must be between 0 and 100")
 			return
 		}
 		alertThreshold = threshold
@@ -1023,17 +1062,15 @@ func addBudgetHandler(w http.ResponseWriter, r *http.Request) {
 
 	err = handlers.AddBudget(db, budget)
 	if err != nil {
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": false,
-			"error":   err.Error(),
-		})
+		if strings.Contains(err.Error(), "already exists") {
+			utils.RespondWithConflict(w, err.Error())
+			return
+		}
+		utils.RespondWithInternalError(w, err, "Add budget")
 		return
 	}
 
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"success": true,
-		"message": "Budget added successfully",
-	})
+	utils.RespondWithSuccess(w, http.StatusCreated, "Budget added successfully", nil)
 }
 
 func listBudgetHandler(w http.ResponseWriter, r *http.Request) {
@@ -1064,74 +1101,67 @@ func listBudgetHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func updateBudgetHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
 	if r.Method != http.MethodPost {
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": false,
-			"error":   "Only POST allowed",
-		})
+		utils.RespondWithMethodNotAllowed(w, "POST")
 		return
 	}
 
 	userID, ok := middleware.GetUserID(r)
 	if !ok {
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": false,
-			"error":   "Unauthorized",
-		})
+		utils.RespondWithUnauthorized(w, "User not authenticated")
 		return
 	}
 
+	// Validate budget ID
 	budgetID, err := strconv.Atoi(r.FormValue("id"))
 	if err != nil || budgetID <= 0 {
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": false,
-			"error":   "Valid budget ID is required",
-		})
+		utils.RespondWithValidationError(w, "Valid budget ID is required (must be a positive number)")
 		return
 	}
 
-	amount, err := strconv.ParseFloat(r.FormValue("amount"), 64)
-	if err != nil || amount <= 0 {
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": false,
-			"error":   "Valid amount is required",
-		})
+	// Validate amount
+	amountStr := r.FormValue("amount")
+	if amountStr == "" {
+		utils.RespondWithValidationError(w, "Amount is required")
 		return
 	}
-
-	// Validate alert threshold (required for update)
-	alertThreshold, err := strconv.Atoi(r.FormValue("alert_threshold"))
+	amount, err := strconv.ParseFloat(amountStr, 64)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": false,
-			"error":   "Alert threshold must be a valid number",
-		})
+		utils.RespondWithValidationError(w, "Amount must be a valid number")
+		return
+	}
+	if err := utils.ValidateAmount(amount); err != nil {
+		utils.RespondWithValidationError(w, err.Error())
+		return
+	}
+
+	// Validate alert threshold
+	alertThresholdStr := r.FormValue("alert_threshold")
+	if alertThresholdStr == "" {
+		utils.RespondWithValidationError(w, "Alert threshold is required")
+		return
+	}
+	alertThreshold, err := strconv.Atoi(alertThresholdStr)
+	if err != nil {
+		utils.RespondWithValidationError(w, "Alert threshold must be a valid number")
 		return
 	}
 	if alertThreshold < 0 || alertThreshold > 100 {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": false,
-			"error":   "Alert threshold must be between 0 and 100",
-		})
+		utils.RespondWithValidationError(w, "Alert threshold must be between 0 and 100")
 		return
 	}
 
 	err = handlers.UpdateBudget(db, userID, budgetID, amount, alertThreshold)
 	if err != nil {
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": false,
-			"error":   err.Error(),
-		})
+		if strings.Contains(err.Error(), "not found") {
+			utils.RespondWithNotFound(w, "Budget")
+			return
+		}
+		utils.RespondWithInternalError(w, err, "Update budget")
 		return
 	}
 
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"success": true,
-		"message": "Budget updated successfully",
-	})
+	utils.RespondWithSuccess(w, http.StatusOK, "Budget updated successfully", nil)
 }
 
 func deleteBudgetHandler(w http.ResponseWriter, r *http.Request) {
