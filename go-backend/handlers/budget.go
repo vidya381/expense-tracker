@@ -99,6 +99,12 @@ func ListBudgets(db *sql.DB, userID int) ([]models.Budget, error) {
 		b.CreatedAt = createdAt.Format("2006-01-02")
 		budgets = append(budgets, b)
 	}
+
+	// Check for any error that occurred during iteration
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
 	return budgets, nil
 }
 

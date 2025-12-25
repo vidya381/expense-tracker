@@ -57,6 +57,12 @@ func GetMonthlyTotals(db *sql.DB, userID int) ([]map[string]interface{}, error) 
 			"total_income":   totalIncome,
 		})
 	}
+
+	// Check for any error that occurred during iteration
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
 	return results, nil
 }
 
@@ -103,6 +109,12 @@ func GetCategoryBreakdown(db *sql.DB, userID int, from, to string) ([]map[string
 			"total":    total,
 		})
 	}
+
+	// Check for any error that occurred during iteration
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
 	return result, nil
 }
 
@@ -158,6 +170,12 @@ func GetGroupTotals(db *sql.DB, userID int, granularity string) ([]map[string]in
 			"total_income":   totalIncome,
 		})
 	}
+
+	// Check for any error that occurred during iteration
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
 	return results, nil
 }
 
@@ -194,5 +212,11 @@ func GetCategoryMonthSummary(db *sql.DB, userID int, year, month int) ([]map[str
 			"total":    total,
 		})
 	}
+
+	// Check for any error that occurred during iteration
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
 	return result, nil
 }

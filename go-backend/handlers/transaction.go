@@ -89,6 +89,12 @@ func ListTransactions(db *sql.DB, userID int) ([]models.Transaction, error) {
 		}
 		transactions = append(transactions, tx)
 	}
+
+	// Check for any error that occurred during iteration
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
 	return transactions, nil
 }
 
@@ -260,5 +266,11 @@ func FilterTransactionsPaginated(
 		}
 		results = append(results, t)
 	}
+
+	// Check for any error that occurred during iteration
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
 	return results, nil
 }
