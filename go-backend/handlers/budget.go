@@ -85,7 +85,8 @@ func ListBudgets(db *sql.DB, userID int) ([]models.Budget, error) {
 	}
 	defer rows.Close()
 
-	var budgets []models.Budget
+	// Pre-allocate for typical number of budgets (3-10)
+	budgets := make([]models.Budget, 0, 5)
 	for rows.Next() {
 		var b models.Budget
 		var createdAt time.Time

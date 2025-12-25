@@ -54,7 +54,8 @@ func ListRecurringTransactions(db *sql.DB, userID int) ([]models.RecurringTransa
 	}
 	defer rows.Close()
 
-	var list []models.RecurringTransaction
+	// Pre-allocate for typical number of recurring transactions (5-20)
+	list := make([]models.RecurringTransaction, 0, 10)
 	for rows.Next() {
 		var rt models.RecurringTransaction
 		var lastOccurrence sql.NullTime

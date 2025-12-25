@@ -70,7 +70,8 @@ func ListTransactions(db *sql.DB, userID int) ([]models.Transaction, error) {
 	}
 	defer rows.Close()
 
-	var transactions []models.Transaction
+	// Pre-allocate with reasonable capacity (assuming average user has dozens to hundreds of transactions)
+	transactions := make([]models.Transaction, 0, 100)
 	for rows.Next() {
 		var tx models.Transaction
 		if err := rows.Scan(
@@ -239,7 +240,8 @@ func FilterTransactionsPaginated(
 	}
 	defer rows.Close()
 
-	var results []models.Transaction
+	// Pre-allocate slice with capacity hint (limit) for better performance
+	results := make([]models.Transaction, 0, limit)
 	for rows.Next() {
 		var t models.Transaction
 		if err := rows.Scan(

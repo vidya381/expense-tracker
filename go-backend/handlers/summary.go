@@ -43,7 +43,8 @@ func GetMonthlyTotals(db *sql.DB, userID int) ([]map[string]interface{}, error) 
 	}
 	defer rows.Close()
 
-	var results []map[string]interface{}
+	// Pre-allocate for ~12 months of data typically
+	results := make([]map[string]interface{}, 0, 12)
 	for rows.Next() {
 		var month time.Time
 		var totalExpenses, totalIncome float64
@@ -88,7 +89,8 @@ func GetCategoryBreakdown(db *sql.DB, userID int, from, to string) ([]map[string
 	}
 	defer rows.Close()
 
-	var result []map[string]interface{}
+	// Pre-allocate for typical number of categories (5-20)
+	result := make([]map[string]interface{}, 0, 10)
 	for rows.Next() {
 		var name, ctype string
 		var total float64
@@ -136,7 +138,14 @@ func GetGroupTotals(db *sql.DB, userID int, granularity string) ([]map[string]in
 	}
 	defer rows.Close()
 
-	var results []map[string]interface{}
+	// Pre-allocate based on granularity (52 weeks, 12 months, or ~3 years)
+	capacity := 52
+	if granularity == "month" {
+		capacity = 12
+	} else if granularity == "year" {
+		capacity = 3
+	}
+	results := make([]map[string]interface{}, 0, capacity)
 	for rows.Next() {
 		var period time.Time
 		var totalExpenses, totalIncome float64
@@ -170,7 +179,9 @@ func GetCategoryMonthSummary(db *sql.DB, userID int, year, month int) ([]map[str
 		return nil, err
 	}
 	defer rows.Close()
-	var result []map[string]interface{}
+
+	// Pre-allocate for typical number of categories
+	result := make([]map[string]interface{}, 0, 10)
 	for rows.Next() {
 		var name, ctype string
 		var total float64
