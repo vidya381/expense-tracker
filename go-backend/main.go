@@ -22,7 +22,7 @@ import (
 	"github.com/joho/godotenv"
 )
 
-var jwtSecret = os.Getenv("JWT_SECRET")
+var jwtSecret string
 
 var db *sql.DB
 
@@ -31,6 +31,12 @@ func main() {
 	err := godotenv.Load()
 	if err != nil {
 		fmt.Println("Warning: .env file not found")
+	}
+
+	// Load and validate JWT secret
+	jwtSecret = os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		log.Fatal("JWT_SECRET environment variable is required")
 	}
 
 	// Connect to database
