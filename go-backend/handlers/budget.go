@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/vidya381/expense-tracker-backend/constants"
 	"github.com/vidya381/expense-tracker-backend/models"
 	"github.com/vidya381/expense-tracker-backend/utils"
 )
@@ -17,8 +18,8 @@ func AddBudget(db *sql.DB, budget models.Budget) error {
 	}
 
 	// Validate alert threshold
-	if budget.AlertThreshold < 0 || budget.AlertThreshold > 100 {
-		return fmt.Errorf("alert threshold must be between 0 and 100")
+	if budget.AlertThreshold < constants.MinAlertThreshold || budget.AlertThreshold > constants.MaxAlertThreshold {
+		return fmt.Errorf("alert threshold must be between %d and %d", constants.MinAlertThreshold, constants.MaxAlertThreshold)
 	}
 
 	ctx, cancel := utils.DBContext()
@@ -85,8 +86,8 @@ func ListBudgets(db *sql.DB, userID int) ([]models.Budget, error) {
 	}
 	defer rows.Close()
 
-	// Pre-allocate for typical number of budgets (3-10)
-	budgets := make([]models.Budget, 0, 5)
+	// Pre-allocate for typical number of budgets
+	budgets := make([]models.Budget, 0, constants.TypicalBudgetCount)
 	for rows.Next() {
 		var b models.Budget
 		var createdAt time.Time
@@ -103,8 +104,8 @@ func ListBudgets(db *sql.DB, userID int) ([]models.Budget, error) {
 
 // UpdateBudget updates an existing budget
 func UpdateBudget(db *sql.DB, userID, budgetID int, amount float64, alertThreshold int) error {
-	if alertThreshold < 0 || alertThreshold > 100 {
-		return fmt.Errorf("alert threshold must be between 0 and 100")
+	if alertThreshold < constants.MinAlertThreshold || alertThreshold > constants.MaxAlertThreshold {
+		return fmt.Errorf("alert threshold must be between %d and %d", constants.MinAlertThreshold, constants.MaxAlertThreshold)
 	}
 
 	ctx, cancel := utils.DBContext()
@@ -168,7 +169,7 @@ func GetBudgetAlerts(db *sql.DB, userID int) ([]models.Budget, error) {
 		if b.Amount == 0 {
 			continue
 		}
-		percentage := (b.CurrentSpending / b.Amount) * 100
+		percentage := (b.CurrentSpending / b.Amount) * float64(constants.MaxAlertThreshold)
 		if percentage >= float64(b.AlertThreshold) {
 			alerts = append(alerts, b)
 		}

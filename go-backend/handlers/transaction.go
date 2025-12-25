@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/vidya381/expense-tracker-backend/constants"
 	"github.com/vidya381/expense-tracker-backend/models"
 	"github.com/vidya381/expense-tracker-backend/utils"
 )
@@ -70,8 +71,8 @@ func ListTransactions(db *sql.DB, userID int) ([]models.Transaction, error) {
 	}
 	defer rows.Close()
 
-	// Pre-allocate with reasonable capacity (assuming average user has dozens to hundreds of transactions)
-	transactions := make([]models.Transaction, 0, 100)
+	// Pre-allocate with reasonable capacity
+	transactions := make([]models.Transaction, 0, constants.TypicalTransactionCount)
 	for rows.Next() {
 		var tx models.Transaction
 		if err := rows.Scan(

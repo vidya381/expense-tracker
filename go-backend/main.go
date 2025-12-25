@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/rs/cors"
+	"github.com/vidya381/expense-tracker-backend/constants"
 	"github.com/vidya381/expense-tracker-backend/handlers"
 	"github.com/vidya381/expense-tracker-backend/jobs"
 	"github.com/vidya381/expense-tracker-backend/middleware"
@@ -57,10 +58,10 @@ func main() {
 	}
 
 	// Configure connection pool
-	db.SetMaxOpenConns(25)                           // Maximum number of open connections
-	db.SetMaxIdleConns(10)                           // Maximum number of idle connections
-	db.SetConnMaxLifetime(5 * time.Minute)           // Maximum lifetime of a connection
-	db.SetConnMaxIdleTime(2 * time.Minute)           // Maximum idle time before closing
+	db.SetMaxOpenConns(constants.MaxOpenConnections)
+	db.SetMaxIdleConns(constants.MaxIdleConnections)
+	db.SetConnMaxLifetime(constants.ConnectionMaxLifetime)
+	db.SetConnMaxIdleTime(constants.ConnectionMaxIdleTime)
 
 	fmt.Println("Connected to PostgreSQL successfully!")
 
@@ -68,8 +69,9 @@ func main() {
 	recurringJobQuit := jobs.StartRecurringJob(db)
 
 	// Create rate limiter for authentication endpoints
-	// Allow 5 requests per minute (burst of 5)
-	authRateLimiter := middleware.NewIPRateLimiter(rate.Limit(5.0/60.0), 5) // 5 requests per 60 seconds
+	authRateLimiter := middleware.NewIPRateLimiter(
+		rate.Limit(constants.AuthRateLimitPerMinute),
+		constants.AuthRateLimitBurst)
 	rateLimitAuth := middleware.RateLimitMiddleware(authRateLimiter)
 
 	mux := http.NewServeMux()
@@ -120,12 +122,12 @@ func main() {
 
 	// Start server in a goroutine
 	server := &http.Server{
-		Addr:    ":8080",
+		Addr:    constants.DefaultServerPort,
 		Handler: corsHandler.Handler(mux),
 	}
 
 	go func() {
-		fmt.Println("Server running at http://localhost:8080")
+		fmt.Printf("Server running at http://localhost%s\n", constants.DefaultServerPort)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Server error: %v", err)
 		}
@@ -139,7 +141,7 @@ func main() {
 	close(recurringJobQuit)
 
 	// Give server time to finish ongoing requests
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(constants.ShutdownGracePeriod)
 
 	fmt.Println("Server stopped")
 }
@@ -219,12 +221,12 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	if len(password) < 8 {
+	if len(password) < constants.MinPasswordLength {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
-			"error":   "Password must be at least 8 characters",
+			"error":   fmt.Sprintf("Password must be at least %d characters", constants.MinPasswordLength),
 		})
 		return
 	}
@@ -333,11 +335,11 @@ func addCategoryHandler(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	if len(name) > 100 {
+	if len(name) > constants.MaxCategoryNameLength {
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
-			"error":   "Category name must be 100 characters or less",
+			"error":   fmt.Sprintf("Category name must be %d characters or less", constants.MaxCategoryNameLength),
 		})
 		return
 	}

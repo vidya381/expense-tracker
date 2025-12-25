@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/vidya381/expense-tracker-backend/constants"
 	"github.com/vidya381/expense-tracker-backend/utils"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -75,7 +76,7 @@ func LoginUser(db *sql.DB, email, password, jwtSecret string) (string, error) {
 	// Create and sign JWT
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"user_id": userID,
-		"exp":     time.Now().Add(time.Hour * 72).Unix(),
+		"exp":     time.Now().Add(constants.JWTExpirationHours).Unix(),
 	})
 
 	tokenString, err := token.SignedString([]byte(jwtSecret))

@@ -3,6 +3,8 @@ package utils
 import (
 	"fmt"
 	"time"
+
+	"github.com/vidya381/expense-tracker-backend/constants"
 )
 
 // ValidateDate checks if a date string is in YYYY-MM-DD format and is a valid date
@@ -80,9 +82,8 @@ func ValidateAmount(amount float64) error {
 		return fmt.Errorf("amount must be greater than 0")
 	}
 
-	// Check for unreasonably large amounts (> 1 billion)
-	if amount > 1000000000 {
-		return fmt.Errorf("amount is too large. Maximum allowed is 1,000,000,000")
+	if amount > constants.MaxAmount {
+		return fmt.Errorf("amount is too large. Maximum allowed is %,.0f", float64(constants.MaxAmount))
 	}
 
 	return nil
@@ -94,8 +95,8 @@ func ValidatePaginationParams(limit, offset int) error {
 		return fmt.Errorf("limit must be at least 1")
 	}
 
-	if limit > 1000 {
-		return fmt.Errorf("limit cannot exceed 1000 records")
+	if limit > constants.MaxPaginationLimit {
+		return fmt.Errorf("limit cannot exceed %d records", constants.MaxPaginationLimit)
 	}
 
 	if offset < 0 {
