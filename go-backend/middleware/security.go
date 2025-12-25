@@ -1,6 +1,9 @@
 package middleware
 
-import "net/http"
+import (
+	"net/http"
+	"os"
+)
 
 // SecurityHeaders adds security-related HTTP headers to responses
 func SecurityHeaders(next http.HandlerFunc) http.HandlerFunc {
@@ -20,8 +23,27 @@ func SecurityHeaders(next http.HandlerFunc) http.HandlerFunc {
 		// Restrict browser features
 		w.Header().Set("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
 
+		// Content Security Policy for API responses
+		// Strict policy since this is a JSON API, not serving HTML
+		csp := getCSPHeader()
+		w.Header().Set("Content-Security-Policy", csp)
+
 		next(w, r)
 	}
+}
+
+// getCSPHeader returns the Content Security Policy header value
+// Can be configured via environment variable for different environments
+func getCSPHeader() string {
+	// Check if custom CSP is provided via environment
+	customCSP := os.Getenv("CSP_HEADER")
+	if customCSP != "" {
+		return customCSP
+	}
+
+	// Default strict CSP for JSON API
+	// This prevents any inline scripts, styles, or external resource loading
+	return "default-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
 }
 
 // StrictTransportSecurity adds HSTS header for HTTPS enforcement
