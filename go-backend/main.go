@@ -17,6 +17,7 @@ import (
 	"github.com/vidya381/expense-tracker-backend/jobs"
 	"github.com/vidya381/expense-tracker-backend/middleware"
 	"github.com/vidya381/expense-tracker-backend/models"
+	"golang.org/x/time/rate"
 
 	_ "github.com/jackc/pgx/v5/stdlib" // pgx driver with database/sql
 	"github.com/joho/godotenv"
@@ -55,11 +56,16 @@ func main() {
 
 	jobs.StartRecurringJob(db)
 
+	// Create rate limiter for authentication endpoints
+	// Allow 5 requests per minute (burst of 5)
+	authRateLimiter := middleware.NewIPRateLimiter(rate.Limit(5.0/60.0), 5) // 5 requests per 60 seconds
+	rateLimitAuth := middleware.RateLimitMiddleware(authRateLimiter)
+
 	mux := http.NewServeMux()
 
-	// Define routes
-	mux.HandleFunc("/register", registerHandler)
-	mux.HandleFunc("/login", loginHandler)
+	// Define routes with rate limiting on auth endpoints
+	mux.HandleFunc("/register", rateLimitAuth(registerHandler))
+	mux.HandleFunc("/login", rateLimitAuth(loginHandler))
 	// Protected routes (require JWT in Authorization header)
 	mux.HandleFunc("/category/add", middleware.RequireAuth(jwtSecret, addCategoryHandler))
 	mux.HandleFunc("/category/list", middleware.RequireAuth(jwtSecret, listCategoryHandler))
