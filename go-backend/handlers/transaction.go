@@ -140,8 +140,24 @@ func FilterTransactionsPaginated(
 		argpos++
 	}
 
+	// Validate orderBy to prevent SQL injection
+	allowedOrders := map[string]bool{
+		"t.date ASC":           true,
+		"t.date DESC":          true,
+		"t.amount ASC":         true,
+		"t.amount DESC":        true,
+		"t.created_at ASC":     true,
+		"t.created_at DESC":    true,
+		"t.date ASC, t.created_at DESC":    true,
+		"t.date DESC, t.created_at DESC":   true,
+		"t.amount ASC, t.created_at DESC":  true,
+		"t.amount DESC, t.created_at DESC": true,
+	}
 	if orderBy == "" {
 		orderBy = "t.date DESC"
+	}
+	if !allowedOrders[orderBy] {
+		orderBy = "t.date DESC" // fallback to default if invalid
 	}
 	base += " ORDER BY " + orderBy
 
