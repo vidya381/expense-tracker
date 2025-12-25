@@ -1,12 +1,12 @@
 package jobs
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
 	"time"
 
 	"github.com/vidya381/expense-tracker-backend/models"
+	"github.com/vidya381/expense-tracker-backend/utils"
 )
 
 // Launches the recurring transaction processor in a background goroutine.
@@ -89,8 +89,9 @@ func ProcessRecurringTransactions(db *sql.DB) {
 
 		dueDates := GetAllMissedDueDates(rt, now)
 		if len(dueDates) > 0 {
+			ctx, cancel := utils.DBContext()
 			for _, dueDate := range dueDates {
-				_, err := db.ExecContext(context.Background(),
+				_, err := db.ExecContext(ctx,
 					`INSERT INTO transactions (user_id, category_id, amount, description, date)
 					VALUES ($1, $2, $3, $4, $5)`,
 					rt.UserID, rt.CategoryID, rt.Amount, rt.Description, dueDate.Format("2006-01-02"),
@@ -103,9 +104,10 @@ func ProcessRecurringTransactions(db *sql.DB) {
 			}
 			// Update last_occurrence to latest due date
 			latestDue := dueDates[len(dueDates)-1]
-			_, err = db.ExecContext(context.Background(),
+			_, err = db.ExecContext(ctx,
 				`UPDATE recurring_transactions SET last_occurrence = $1 WHERE id = $2`,
 				latestDue.Format("2006-01-02"), rt.ID)
+			cancel()
 			if err != nil {
 				fmt.Println("Recurring jobs: error updating last_occurrence:", err)
 			} else {

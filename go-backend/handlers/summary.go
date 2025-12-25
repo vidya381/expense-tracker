@@ -1,16 +1,20 @@
 package handlers
 
 import (
-	"context"
 	"database/sql"
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/vidya381/expense-tracker-backend/utils"
 )
 
 // Returns the total expenses and income for the authenticated user.
 func GetTotals(db *sql.DB, userID int) (expenses float64, income float64, err error) {
-	err = db.QueryRowContext(context.Background(),
+	ctx, cancel := utils.DBContext()
+	defer cancel()
+
+	err = db.QueryRowContext(ctx,
 		`SELECT
 			COALESCE(SUM(CASE WHEN c.type = 'expense' THEN t.amount ELSE 0 END),0),
 			COALESCE(SUM(CASE WHEN c.type = 'income' THEN t.amount ELSE 0 END),0)
@@ -22,7 +26,10 @@ func GetTotals(db *sql.DB, userID int) (expenses float64, income float64, err er
 
 // Returns monthly totals (income and expenses per month)
 func GetMonthlyTotals(db *sql.DB, userID int) ([]map[string]interface{}, error) {
-	rows, err := db.QueryContext(context.Background(),
+	ctx, cancel := utils.DBContext()
+	defer cancel()
+
+	rows, err := db.QueryContext(ctx,
 		`SELECT DATE_TRUNC('month', t.date) as month,
 				COALESCE(SUM(CASE WHEN c.type = 'expense' THEN t.amount ELSE 0 END),0) as total_expenses,
 				COALESCE(SUM(CASE WHEN c.type = 'income' THEN t.amount ELSE 0 END),0) as total_income
@@ -72,7 +79,10 @@ func GetCategoryBreakdown(db *sql.DB, userID int, from, to string) ([]map[string
 	}
 	base += " GROUP BY c.name, c.type ORDER BY c.type, total DESC"
 
-	rows, err := db.QueryContext(context.Background(), base, params...)
+	ctx, cancel := utils.DBContext()
+	defer cancel()
+
+	rows, err := db.QueryContext(ctx, base, params...)
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +126,11 @@ func GetGroupTotals(db *sql.DB, userID int, granularity string) ([]map[string]in
 		JOIN categories c ON t.category_id = c.id
 		WHERE t.user_id = $1
 		GROUP BY period ORDER BY period DESC`, granularity)
-	rows, err := db.QueryContext(context.Background(), sqlQuery, userID)
+
+	ctx, cancel := utils.DBContext()
+	defer cancel()
+
+	rows, err := db.QueryContext(ctx, sqlQuery, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -147,7 +161,11 @@ func GetCategoryMonthSummary(db *sql.DB, userID int, year, month int) ([]map[str
 		WHERE t.user_id = $1 AND EXTRACT(YEAR FROM t.date) = $2 AND EXTRACT(MONTH FROM t.date) = $3
 		GROUP BY c.name, c.type
 		ORDER BY c.type, SUM(t.amount) DESC`
-	rows, err := db.QueryContext(context.Background(), query, userID, year, month)
+
+	ctx, cancel := utils.DBContext()
+	defer cancel()
+
+	rows, err := db.QueryContext(ctx, query, userID, year, month)
 	if err != nil {
 		return nil, err
 	}

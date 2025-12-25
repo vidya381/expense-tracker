@@ -1,12 +1,12 @@
 package handlers
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
 	"time"
 
 	"github.com/vidya381/expense-tracker-backend/models"
+	"github.com/vidya381/expense-tracker-backend/utils"
 )
 
 // AddBudget creates a new budget for a user
@@ -21,7 +21,10 @@ func AddBudget(db *sql.DB, budget models.Budget) error {
 		return fmt.Errorf("alert threshold must be between 0 and 100")
 	}
 
-	_, err := db.ExecContext(context.Background(),
+	ctx, cancel := utils.DBContext()
+	defer cancel()
+
+	_, err := db.ExecContext(ctx,
 		`INSERT INTO budgets (user_id, category_id, amount, period, alert_threshold)
 		 VALUES ($1, $2, $3, $4, $5)`,
 		budget.UserID, budget.CategoryID, budget.Amount, period, budget.AlertThreshold)
@@ -30,7 +33,10 @@ func AddBudget(db *sql.DB, budget models.Budget) error {
 
 // ListBudgets retrieves all budgets for a user with current spending
 func ListBudgets(db *sql.DB, userID int) ([]models.Budget, error) {
-	rows, err := db.QueryContext(context.Background(),
+	ctx, cancel := utils.DBContext()
+	defer cancel()
+
+	rows, err := db.QueryContext(ctx,
 		`SELECT b.id, b.user_id, b.category_id, b.amount, b.period, b.alert_threshold, b.created_at,
 		        COALESCE(c.name, 'Overall') as category_name
 		 FROM budgets b
@@ -100,8 +106,11 @@ func calculateCurrentSpending(db *sql.DB, userID int, categoryID int, period str
 		args = []interface{}{userID, categoryID, startDate.Format("2006-01-02"), endDate.Format("2006-01-02")}
 	}
 
+	ctx, cancel := utils.DBContext()
+	defer cancel()
+
 	var spending float64
-	err := db.QueryRowContext(context.Background(), query, args...).Scan(&spending)
+	err := db.QueryRowContext(ctx, query, args...).Scan(&spending)
 	return spending, err
 }
 
@@ -111,7 +120,10 @@ func UpdateBudget(db *sql.DB, userID, budgetID int, amount float64, alertThresho
 		return fmt.Errorf("alert threshold must be between 0 and 100")
 	}
 
-	result, err := db.ExecContext(context.Background(),
+	ctx, cancel := utils.DBContext()
+	defer cancel()
+
+	result, err := db.ExecContext(ctx,
 		`UPDATE budgets
 		 SET amount = $1, alert_threshold = $2
 		 WHERE id = $3 AND user_id = $4`,
@@ -134,7 +146,10 @@ func UpdateBudget(db *sql.DB, userID, budgetID int, amount float64, alertThresho
 
 // DeleteBudget removes a budget
 func DeleteBudget(db *sql.DB, budgetID, userID int) error {
-	result, err := db.ExecContext(context.Background(),
+	ctx, cancel := utils.DBContext()
+	defer cancel()
+
+	result, err := db.ExecContext(ctx,
 		`DELETE FROM budgets WHERE id = $1 AND user_id = $2`,
 		budgetID, userID)
 	if err != nil {
