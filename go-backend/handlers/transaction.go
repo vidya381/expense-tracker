@@ -86,19 +86,50 @@ func ListTransactions(db *sql.DB, userID int) ([]models.Transaction, error) {
 
 // Update an existing transaction
 func UpdateTransaction(db *sql.DB, tx models.Transaction) error {
+	// Verify category ownership
+	if err := verifyCategoryOwnership(db, tx.UserID, tx.CategoryID); err != nil {
+		return err
+	}
+
 	query := `UPDATE transactions
 			  SET amount = $1, description = $2, category_id = $3, date = $4
 			  WHERE id = $5 AND user_id = $6`
-	_, err := db.ExecContext(context.Background(), query,
+	result, err := db.ExecContext(context.Background(), query,
 		tx.Amount, tx.Description, tx.CategoryID, tx.Date, tx.ID, tx.UserID)
-	return err
+	if err != nil {
+		return err
+	}
+
+	// Check if any rows were actually updated
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return errors.New("transaction not found or unauthorized")
+	}
+
+	return nil
 }
 
 // Delete a transaction
 func DeleteTransaction(db *sql.DB, id, userID int) error {
-	_, err := db.ExecContext(context.Background(),
+	result, err := db.ExecContext(context.Background(),
 		`DELETE FROM transactions WHERE id = $1 AND user_id = $2`, id, userID)
-	return err
+	if err != nil {
+		return err
+	}
+
+	// Check if any rows were actually deleted
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return errors.New("transaction not found or unauthorized")
+	}
+
+	return nil
 }
 
 // FilterTransactionsPaginated supports filtering, pagination, and sorting.
