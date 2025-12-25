@@ -22,6 +22,27 @@ func StartRecurringJob(db *sql.DB) {
 
 // Checks all recurring rules, schedules transactions as needed.
 func ProcessRecurringTransactions(db *sql.DB) {
+	// Use PostgreSQL advisory lock to prevent multiple instances from processing simultaneously
+	// Lock ID: 123456789 (arbitrary number for this specific job)
+	var lockAcquired bool
+	err := db.QueryRow("SELECT pg_try_advisory_lock(123456789)").Scan(&lockAcquired)
+	if err != nil {
+		fmt.Println("Recurring jobs: error acquiring lock:", err)
+		return
+	}
+	if !lockAcquired {
+		// Another instance is already processing, skip this run
+		return
+	}
+
+	// Ensure we release the lock when done
+	defer func() {
+		_, err := db.Exec("SELECT pg_advisory_unlock(123456789)")
+		if err != nil {
+			fmt.Println("Recurring jobs: error releasing lock:", err)
+		}
+	}()
+
 	rows, err := db.Query(`
 		SELECT id, user_id, category_id, amount, description, start_date, recurrence, last_occurrence
 		FROM recurring_transactions
