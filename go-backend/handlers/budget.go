@@ -162,6 +162,10 @@ func GetBudgetAlerts(db *sql.DB, userID int) ([]models.Budget, error) {
 
 	var alerts []models.Budget
 	for _, b := range budgets {
+		// Skip if budget amount is zero to prevent division by zero
+		if b.Amount == 0 {
+			continue
+		}
 		percentage := (b.CurrentSpending / b.Amount) * 100
 		if percentage >= float64(b.AlertThreshold) {
 			alerts = append(alerts, b)
