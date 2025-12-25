@@ -55,3 +55,36 @@ func StrictTransportSecurity(next http.HandlerFunc) http.HandlerFunc {
 		next(w, r)
 	}
 }
+
+// RequireHTTPS enforces HTTPS in production environments
+// Redirects HTTP requests to HTTPS and adds HSTS header
+func RequireHTTPS(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Check if HTTPS enforcement is enabled via environment variable
+		enforceHTTPS := os.Getenv("ENFORCE_HTTPS")
+		if enforceHTTPS != "true" {
+			// HTTPS not enforced, continue normally
+			next(w, r)
+			return
+		}
+
+		// Check if request is already HTTPS
+		// Check multiple ways since it might be behind a proxy/load balancer
+		isHTTPS := r.TLS != nil ||
+			r.Header.Get("X-Forwarded-Proto") == "https" ||
+			r.Header.Get("X-Forwarded-Ssl") == "on" ||
+			r.URL.Scheme == "https"
+
+		if !isHTTPS {
+			// Redirect HTTP to HTTPS
+			httpsURL := "https://" + r.Host + r.RequestURI
+			http.Redirect(w, r, httpsURL, http.StatusMovedPermanently)
+			return
+		}
+
+		// Add HSTS header for HTTPS requests
+		w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload")
+
+		next(w, r)
+	}
+}
