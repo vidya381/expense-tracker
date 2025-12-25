@@ -124,35 +124,86 @@ func GetAllMissedDueDates(rt models.RecurringTransaction, today time.Time) []tim
 	if err != nil {
 		return nil
 	}
-	var last time.Time
+
+	// Normalize to midnight UTC to avoid timezone issues
+	start = time.Date(start.Year(), start.Month(), start.Day(), 0, 0, 0, 0, time.UTC)
+	today = time.Date(today.Year(), today.Month(), today.Day(), 0, 0, 0, 0, time.UTC)
+
+	// Start date is in the future, no transactions due yet
+	if start.After(today) {
+		return nil
+	}
+
+	var next time.Time
 	if rt.LastOccurrence != nil {
-		last = *rt.LastOccurrence
+		last := *rt.LastOccurrence
+		last = time.Date(last.Year(), last.Month(), last.Day(), 0, 0, 0, 0, time.UTC)
+		// Calculate next occurrence after last
+		next = calculateNextOccurrence(last, start, rt.Recurrence)
 	} else {
-		last = start.AddDate(0, 0, -1)
+		// No last occurrence, start from the start date
+		next = start
 	}
 
 	var dueDates []time.Time
-	next := last
-	for {
-		// Finding next recurrence date
-		switch rt.Recurrence {
-		case "daily":
-			next = next.AddDate(0, 0, 1)
-		case "weekly":
-			next = next.AddDate(0, 0, 7)
-		case "monthly":
-			next = next.AddDate(0, 1, 0)
-		case "yearly":
-			next = next.AddDate(1, 0, 0)
-		default:
-			return dueDates
-		}
-		if next.After(today) {
-			break
-		}
-		if !next.Before(start) {
-			dueDates = append(dueDates, next)
-		}
+	// Limit to prevent infinite loops or excessive processing (max 3650 days / ~10 years of daily)
+	maxIterations := 3650
+	iterations := 0
+
+	for !next.After(today) && iterations < maxIterations {
+		dueDates = append(dueDates, next)
+		next = calculateNextOccurrence(next, start, rt.Recurrence)
+		iterations++
 	}
+
 	return dueDates
+}
+
+// calculateNextOccurrence calculates the next occurrence date based on recurrence type
+// For monthly recurrence, preserves the original day-of-month from start date when possible
+func calculateNextOccurrence(current time.Time, start time.Time, recurrence string) time.Time {
+	switch recurrence {
+	case "daily":
+		return current.AddDate(0, 0, 1)
+	case "weekly":
+		return current.AddDate(0, 0, 7)
+	case "monthly":
+		// Preserve the day from start date, handling month-end edge cases
+		targetDay := start.Day()
+		next := current.AddDate(0, 1, 0)
+
+		// Handle month-end dates (e.g., Jan 31 -> Feb 28/29)
+		// Get last day of the target month
+		firstOfNextMonth := time.Date(next.Year(), next.Month()+1, 1, 0, 0, 0, 0, time.UTC)
+		lastDayOfMonth := firstOfNextMonth.AddDate(0, 0, -1).Day()
+
+		if targetDay > lastDayOfMonth {
+			// Use last day of month if target day doesn't exist
+			return time.Date(next.Year(), next.Month(), lastDayOfMonth, 0, 0, 0, 0, time.UTC)
+		}
+		return time.Date(next.Year(), next.Month(), targetDay, 0, 0, 0, 0, time.UTC)
+	case "yearly":
+		// Preserve month and day from start date, handling Feb 29 edge case
+		targetMonth := start.Month()
+		targetDay := start.Day()
+		nextYear := current.Year() + 1
+
+		// Handle Feb 29 on non-leap years
+		if targetMonth == time.February && targetDay == 29 {
+			// Check if next year is a leap year
+			if !isLeapYear(nextYear) {
+				// Use Feb 28 instead
+				return time.Date(nextYear, time.February, 28, 0, 0, 0, 0, time.UTC)
+			}
+		}
+		return time.Date(nextYear, targetMonth, targetDay, 0, 0, 0, 0, time.UTC)
+	default:
+		// Unknown recurrence, return current (will cause loop to exit)
+		return current
+	}
+}
+
+// isLeapYear checks if a year is a leap year
+func isLeapYear(year int) bool {
+	return year%4 == 0 && (year%100 != 0 || year%400 == 0)
 }

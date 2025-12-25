@@ -17,10 +17,21 @@ func AddRecurringTransaction(db *sql.DB, rt models.RecurringTransaction) error {
 		return fmt.Errorf("recurrence must be daily, weekly, monthly, or yearly")
 	}
 
+	// Verify category ownership before creating recurring transaction
+	var count int
+	err := db.QueryRow("SELECT COUNT(*) FROM categories WHERE id = $1 AND user_id = $2",
+		rt.CategoryID, rt.UserID).Scan(&count)
+	if err != nil {
+		return err
+	}
+	if count == 0 {
+		return fmt.Errorf("category not found or unauthorized")
+	}
+
 	ctx, cancel := utils.DBContext()
 	defer cancel()
 
-	_, err := db.ExecContext(ctx,
+	_, err = db.ExecContext(ctx,
 		`INSERT INTO recurring_transactions
 		(user_id, category_id, amount, description, start_date, recurrence)
 		VALUES ($1, $2, $3, $4, $5, $6)`,
@@ -69,12 +80,25 @@ func EditRecurringTransaction(db *sql.DB, userID, id int, amount float64, descri
 	defer cancel()
 
 	// Only allow update if user owns it
-	_, err := db.ExecContext(ctx,
+	result, err := db.ExecContext(ctx,
 		`UPDATE recurring_transactions
 		 SET amount = $1, description = $2, start_date = $3, recurrence = $4
 		 WHERE id = $5 AND user_id = $6`,
 		amount, description, startDate, recurrence, id, userID)
-	return err
+	if err != nil {
+		return err
+	}
+
+	// Check if any rows were actually updated
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return fmt.Errorf("recurring transaction not found or unauthorized")
+	}
+
+	return nil
 }
 
 // Delete recurring transaction
@@ -82,7 +106,20 @@ func DeleteRecurringTransaction(db *sql.DB, id, userID int) error {
 	ctx, cancel := utils.DBContext()
 	defer cancel()
 
-	_, err := db.ExecContext(ctx,
+	result, err := db.ExecContext(ctx,
 		"DELETE FROM recurring_transactions WHERE id = $1 AND user_id = $2", id, userID)
-	return err
+	if err != nil {
+		return err
+	}
+
+	// Check if any rows were actually deleted
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return fmt.Errorf("recurring transaction not found or unauthorized")
+	}
+
+	return nil
 }
