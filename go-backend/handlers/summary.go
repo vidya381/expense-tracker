@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 )
@@ -95,11 +96,18 @@ func GetCategoryBreakdown(db *sql.DB, userID int, from, to string) ([]map[string
 
 // Group by month, week, or year for totals by period.
 func GetGroupTotals(db *sql.DB, userID int, granularity string) ([]map[string]interface{}, error) {
-	allowed := map[string]bool{"month": true, "week": true, "year": true}
-	unit := "month"
-	if allowed[granularity] {
-		unit = granularity
+	// Strict whitelist validation - explicitly reject invalid values
+	allowedGranularities := map[string]bool{
+		"month": true,
+		"week":  true,
+		"year":  true,
 	}
+
+	if !allowedGranularities[granularity] {
+		return nil, errors.New("invalid granularity: must be 'month', 'week', or 'year'")
+	}
+
+	// Safe to use in SQL since we validated against strict whitelist
 	sqlQuery := fmt.Sprintf(`
 		SELECT DATE_TRUNC('%s', t.date) as period,
 			COALESCE(SUM(CASE WHEN c.type = 'expense' THEN t.amount ELSE 0 END), 0) as total_expenses,
@@ -107,7 +115,7 @@ func GetGroupTotals(db *sql.DB, userID int, granularity string) ([]map[string]in
 		FROM transactions t
 		JOIN categories c ON t.category_id = c.id
 		WHERE t.user_id = $1
-		GROUP BY period ORDER BY period DESC`, unit)
+		GROUP BY period ORDER BY period DESC`, granularity)
 	rows, err := db.QueryContext(context.Background(), sqlQuery, userID)
 	if err != nil {
 		return nil, err
