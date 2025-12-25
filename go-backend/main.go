@@ -17,6 +17,7 @@ import (
 	"github.com/vidya381/expense-tracker-backend/jobs"
 	"github.com/vidya381/expense-tracker-backend/middleware"
 	"github.com/vidya381/expense-tracker-backend/models"
+	"github.com/vidya381/expense-tracker-backend/utils"
 	"golang.org/x/time/rate"
 
 	_ "github.com/jackc/pgx/v5/stdlib" // pgx driver with database/sql
@@ -135,6 +136,16 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
 			"error":   "Username is required",
+		})
+		return
+	}
+	// Validate username format (alphanumeric, underscore, hyphen only)
+	if !utils.ValidateUsername(username) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Username must be 3-50 characters and contain only letters, numbers, underscores, or hyphens",
 		})
 		return
 	}
@@ -269,7 +280,7 @@ func addCategoryHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	name := strings.TrimSpace(r.FormValue("name"))
+	name := utils.SanitizeCategoryName(r.FormValue("name"))
 	ctype := strings.ToLower(strings.TrimSpace(r.FormValue("type")))
 
 	if name == "" {
@@ -277,6 +288,14 @@ func addCategoryHandler(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
 			"error":   "Category name is required",
+		})
+		return
+	}
+	if len(name) > 100 {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error":   "Category name must be 100 characters or less",
 		})
 		return
 	}
@@ -394,7 +413,7 @@ func addTransactionHandler(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	description := strings.TrimSpace(r.FormValue("description"))
+	description := utils.SanitizeDescription(r.FormValue("description"))
 	date := r.FormValue("date")
 	if date == "" {
 		w.WriteHeader(http.StatusBadRequest)
@@ -516,7 +535,7 @@ func updateTransactionHandler(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	description := strings.TrimSpace(r.FormValue("description"))
+	description := utils.SanitizeDescription(r.FormValue("description"))
 	date := r.FormValue("date")
 	if date == "" {
 		w.WriteHeader(http.StatusBadRequest)
@@ -744,7 +763,7 @@ func addRecurringHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Amount must be a positive number", http.StatusBadRequest)
 		return
 	}
-	description := strings.TrimSpace(r.FormValue("description"))
+	description := utils.SanitizeDescription(r.FormValue("description"))
 	startDate := r.FormValue("start_date")
 	recurrence := strings.ToLower(strings.TrimSpace(r.FormValue("recurrence")))
 	if startDate == "" || recurrence == "" {
