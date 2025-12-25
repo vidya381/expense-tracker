@@ -10,14 +10,27 @@ import (
 )
 
 // Launches the recurring transaction processor in a background goroutine.
-func StartRecurringJob(db *sql.DB) {
+// Returns a channel that can be closed to stop the job gracefully.
+func StartRecurringJob(db *sql.DB) chan struct{} {
+	quit := make(chan struct{})
 	go func() {
+		ticker := time.NewTicker(1 * time.Hour)
+		defer ticker.Stop()
+
+		// Run once immediately on startup
+		ProcessRecurringTransactions(db)
+
 		for {
-			ProcessRecurringTransactions(db)
-			time.Sleep(1 * time.Hour) // Check every hour
-			// fmt.Println("Processed Recurring Transactions")
+			select {
+			case <-ticker.C:
+				ProcessRecurringTransactions(db)
+			case <-quit:
+				fmt.Println("Recurring job shutting down gracefully...")
+				return
+			}
 		}
 	}()
+	return quit
 }
 
 // Checks all recurring rules, schedules transactions as needed.

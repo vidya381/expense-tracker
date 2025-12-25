@@ -9,8 +9,10 @@ import (
 	"net/http"
 	"net/mail"
 	"os"
+	"os/signal"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/rs/cors"
@@ -62,7 +64,8 @@ func main() {
 
 	fmt.Println("Connected to PostgreSQL successfully!")
 
-	jobs.StartRecurringJob(db)
+	// Start recurring job and capture quit channel for graceful shutdown
+	recurringJobQuit := jobs.StartRecurringJob(db)
 
 	// Create rate limiter for authentication endpoints
 	// Allow 5 requests per minute (burst of 5)
@@ -105,8 +108,34 @@ func main() {
 		AllowCredentials: true,
 	})
 
-	fmt.Println("Server running at http://localhost:8080")
-	http.ListenAndServe(":8080", corsHandler.Handler(mux))
+	// Set up signal handling for graceful shutdown
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+
+	// Start server in a goroutine
+	server := &http.Server{
+		Addr:    ":8080",
+		Handler: corsHandler.Handler(mux),
+	}
+
+	go func() {
+		fmt.Println("Server running at http://localhost:8080")
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Server error: %v", err)
+		}
+	}()
+
+	// Wait for shutdown signal
+	<-sigChan
+	fmt.Println("\nShutdown signal received, stopping server...")
+
+	// Close recurring job gracefully
+	close(recurringJobQuit)
+
+	// Give server time to finish ongoing requests
+	time.Sleep(100 * time.Millisecond)
+
+	fmt.Println("Server stopped")
 }
 
 // Builds the PostgreSQL connection URL from environment variables for use with sql.Open
