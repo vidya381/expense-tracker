@@ -29,7 +29,10 @@ func AddBudget(db *sql.DB, budget models.Budget) error {
 		`INSERT INTO budgets (user_id, category_id, amount, period, alert_threshold)
 		 VALUES ($1, $2, $3, $4, $5)`,
 		budget.UserID, budget.CategoryID, budget.Amount, period, budget.AlertThreshold)
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to insert budget: %w", err)
+	}
+	return nil
 }
 
 // ListBudgets retrieves all budgets for a user with current spending
@@ -126,7 +129,7 @@ func UpdateBudget(db *sql.DB, userID, budgetID int, amount float64, alertThresho
 		 WHERE id = $3 AND user_id = $4`,
 		amount, alertThreshold, budgetID, userID)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to update budget: %w", err)
 	}
 
 	// Check if any rows were actually updated
@@ -143,7 +146,7 @@ func DeleteBudget(db *sql.DB, budgetID, userID int) error {
 		`DELETE FROM budgets WHERE id = $1 AND user_id = $2`,
 		budgetID, userID)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to delete budget: %w", err)
 	}
 
 	// Check if any rows were actually deleted

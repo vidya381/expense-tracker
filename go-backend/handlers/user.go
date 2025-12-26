@@ -27,7 +27,7 @@ func RegisterUser(db *sql.DB, username, email, password string) error {
 	var exists bool
 	err := db.QueryRow("SELECT EXISTS (SELECT 1 FROM users WHERE email = $1)", email).Scan(&exists)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to check email existence: %w", err)
 	}
 	if exists {
 		return ErrEmailExists
@@ -36,7 +36,7 @@ func RegisterUser(db *sql.DB, username, email, password string) error {
 	// Check if username exists
 	err = db.QueryRow("SELECT EXISTS (SELECT 1 FROM users WHERE username = $1)", username).Scan(&exists)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to check username existence: %w", err)
 	}
 	if exists {
 		return ErrUsernameExists
@@ -72,7 +72,7 @@ func LoginUser(db *sql.DB, email, password, jwtSecret string) (string, error) {
 		return "", ErrUserNotFound
 	}
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to query user by email: %w", err)
 	}
 
 	if bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password)) != nil {

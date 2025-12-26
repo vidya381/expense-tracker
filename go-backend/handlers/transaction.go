@@ -24,7 +24,10 @@ func AddTransaction(db *sql.DB, tx models.Transaction) error {
 			  VALUES ($1, $2, $3, $4, $5)`
 	_, err := db.ExecContext(ctx, query,
 		tx.UserID, tx.CategoryID, tx.Amount, tx.Description, tx.Date)
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to insert transaction: %w", err)
+	}
+	return nil
 }
 
 // ListTransactions retrieves all transactions for the specified user, including category details.
@@ -100,7 +103,7 @@ func UpdateTransaction(db *sql.DB, tx models.Transaction) error {
 	result, err := db.ExecContext(ctx, query,
 		tx.Amount, tx.Description, tx.CategoryID, tx.Date, tx.ID, tx.UserID)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to update transaction: %w", err)
 	}
 
 	// Check if any rows were actually updated
@@ -116,7 +119,7 @@ func DeleteTransaction(db *sql.DB, id, userID int) error {
 	result, err := db.ExecContext(ctx,
 		`DELETE FROM transactions WHERE id = $1 AND user_id = $2`, id, userID)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to delete transaction: %w", err)
 	}
 
 	// Check if any rows were actually deleted

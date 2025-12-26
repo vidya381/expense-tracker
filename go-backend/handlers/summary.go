@@ -22,7 +22,10 @@ func GetTotals(db *sql.DB, userID int) (expenses float64, income float64, err er
 		FROM transactions t
 		JOIN categories c ON t.category_id = c.id
 		WHERE t.user_id = $1`, userID).Scan(&expenses, &income)
-	return
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to query totals: %w", err)
+	}
+	return expenses, income, nil
 }
 
 // GetMonthlyTotals retrieves monthly aggregated income and expense totals for the user.
@@ -41,7 +44,7 @@ func GetMonthlyTotals(db *sql.DB, userID int) ([]map[string]interface{}, error) 
 		 GROUP BY month
 		 ORDER BY month DESC`, userID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to query monthly totals: %w", err)
 	}
 	defer rows.Close()
 
@@ -51,7 +54,7 @@ func GetMonthlyTotals(db *sql.DB, userID int) ([]map[string]interface{}, error) 
 		var month time.Time
 		var totalExpenses, totalIncome float64
 		if err := rows.Scan(&month, &totalExpenses, &totalIncome); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to scan monthly total row: %w", err)
 		}
 		results = append(results, map[string]interface{}{
 			"month":          month.Format("2006-01"),
@@ -62,7 +65,7 @@ func GetMonthlyTotals(db *sql.DB, userID int) ([]map[string]interface{}, error) 
 
 	// Check for any error that occurred during iteration
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error iterating monthly totals: %w", err)
 	}
 
 	return results, nil
@@ -95,7 +98,7 @@ func GetCategoryBreakdown(db *sql.DB, userID int, from, to string) ([]map[string
 
 	rows, err := db.QueryContext(ctx, base, params...)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to query category breakdown: %w", err)
 	}
 	defer rows.Close()
 
@@ -105,7 +108,7 @@ func GetCategoryBreakdown(db *sql.DB, userID int, from, to string) ([]map[string
 		var name, ctype string
 		var total float64
 		if err := rows.Scan(&name, &ctype, &total); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to scan category breakdown row: %w", err)
 		}
 		result = append(result, map[string]interface{}{
 			"category": name,
@@ -116,7 +119,7 @@ func GetCategoryBreakdown(db *sql.DB, userID int, from, to string) ([]map[string
 
 	// Check for any error that occurred during iteration
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error iterating category breakdown: %w", err)
 	}
 
 	return result, nil
@@ -152,7 +155,7 @@ func GetGroupTotals(db *sql.DB, userID int, granularity string) ([]map[string]in
 
 	rows, err := db.QueryContext(ctx, sqlQuery, userID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to query group totals: %w", err)
 	}
 	defer rows.Close()
 
@@ -168,7 +171,7 @@ func GetGroupTotals(db *sql.DB, userID int, granularity string) ([]map[string]in
 		var period time.Time
 		var totalExpenses, totalIncome float64
 		if err := rows.Scan(&period, &totalExpenses, &totalIncome); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to scan group totals row: %w", err)
 		}
 		results = append(results, map[string]interface{}{
 			"period":         period.Format("2006-01-02"),
@@ -179,7 +182,7 @@ func GetGroupTotals(db *sql.DB, userID int, granularity string) ([]map[string]in
 
 	// Check for any error that occurred during iteration
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error iterating group totals: %w", err)
 	}
 
 	return results, nil
@@ -201,7 +204,7 @@ func GetCategoryMonthSummary(db *sql.DB, userID int, year, month int) ([]map[str
 
 	rows, err := db.QueryContext(ctx, query, userID, year, month)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to query category month summary: %w", err)
 	}
 	defer rows.Close()
 
@@ -211,7 +214,7 @@ func GetCategoryMonthSummary(db *sql.DB, userID int, year, month int) ([]map[str
 		var name, ctype string
 		var total float64
 		if err := rows.Scan(&name, &ctype, &total); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to scan category month summary row: %w", err)
 		}
 		result = append(result, map[string]interface{}{
 			"category": name,
@@ -222,7 +225,7 @@ func GetCategoryMonthSummary(db *sql.DB, userID int, year, month int) ([]map[str
 
 	// Check for any error that occurred during iteration
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error iterating category month summary: %w", err)
 	}
 
 	return result, nil

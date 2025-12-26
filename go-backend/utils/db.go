@@ -3,6 +3,7 @@ package utils
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 )
@@ -82,7 +83,7 @@ func VerifyCategoryOwnership(db *sql.DB, userID, categoryID int) error {
 	err := db.QueryRow("SELECT COUNT(*) FROM categories WHERE id = $1 AND user_id = $2",
 		categoryID, userID).Scan(&count)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to verify category ownership: %w", err)
 	}
 	if count == 0 {
 		return errors.New("category not found or unauthorized")

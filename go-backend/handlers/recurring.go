@@ -32,7 +32,10 @@ func AddRecurringTransaction(db *sql.DB, rt models.RecurringTransaction) error {
 		(user_id, category_id, amount, description, start_date, recurrence)
 		VALUES ($1, $2, $3, $4, $5, $6)`,
 		rt.UserID, rt.CategoryID, rt.Amount, rt.Description, rt.StartDate, rec)
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to insert recurring transaction: %w", err)
+	}
+	return nil
 }
 
 // ListRecurringTransactions retrieves all recurring transactions for the specified user.
@@ -86,7 +89,7 @@ func EditRecurringTransaction(db *sql.DB, userID, id int, amount float64, descri
 		 WHERE id = $5 AND user_id = $6`,
 		amount, description, startDate, recurrence, id, userID)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to update recurring transaction: %w", err)
 	}
 
 	// Check if any rows were actually updated
@@ -103,7 +106,7 @@ func DeleteRecurringTransaction(db *sql.DB, id, userID int) error {
 	result, err := db.ExecContext(ctx,
 		"DELETE FROM recurring_transactions WHERE id = $1 AND user_id = $2", id, userID)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to delete recurring transaction: %w", err)
 	}
 
 	// Check if any rows were actually deleted

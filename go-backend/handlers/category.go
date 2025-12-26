@@ -24,7 +24,7 @@ func AddCategory(db *sql.DB, userID int, name, ctype string) (int, error) {
 	if err == nil {
 		return 0, fmt.Errorf("category '%s' (type: %s) already exists for this user", name, ctype)
 	} else if err != sql.ErrNoRows {
-		return 0, err
+		return 0, fmt.Errorf("failed to check category existence: %w", err)
 	}
 
 	// Insert category and get the returning ID
@@ -34,7 +34,7 @@ func AddCategory(db *sql.DB, userID int, name, ctype string) (int, error) {
 		"INSERT INTO categories (user_id, name, type) VALUES ($1, $2, $3) RETURNING id",
 		userID, name, ctype).Scan(&categoryID)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("failed to insert category: %w", err)
 	}
 
 	return categoryID, nil
