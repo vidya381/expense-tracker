@@ -14,7 +14,9 @@ type contextKey string
 
 const userIDKey contextKey = "user_id"
 
-// Middleware function to protect routes and pass user ID from token to handlers
+// RequireAuth is a middleware that validates JWT tokens and extracts user ID.
+// Protects routes by requiring a valid Bearer token in the Authorization header.
+// The user ID from the token is stored in the request context for use by handlers.
 func RequireAuth(jwtSecret string, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Extract token from Authorization header
@@ -59,7 +61,9 @@ func RequireAuth(jwtSecret string, next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-// Helper to extract user ID from request context in your handlers
+// GetUserID retrieves the authenticated user's ID from the request context.
+// Returns the user ID and true if found, or 0 and false if not authenticated.
+// Should be called from handlers that are protected by RequireAuth middleware.
 func GetUserID(r *http.Request) (int, bool) {
 	userID, ok := r.Context().Value(userIDKey).(int)
 	return userID, ok

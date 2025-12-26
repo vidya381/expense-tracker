@@ -9,7 +9,8 @@ import (
 	"github.com/vidya381/expense-tracker-backend/utils"
 )
 
-// Returns the total expenses and income for the authenticated user.
+// GetTotals calculates the total expenses and income for the specified user across all time.
+// Returns two float64 values: total expenses and total income.
 func GetTotals(db *sql.DB, userID int) (expenses float64, income float64, err error) {
 	ctx, cancel := utils.DBContext()
 	defer cancel()
@@ -24,7 +25,8 @@ func GetTotals(db *sql.DB, userID int) (expenses float64, income float64, err er
 	return
 }
 
-// Returns monthly totals (income and expenses per month)
+// GetMonthlyTotals retrieves monthly aggregated income and expense totals for the user.
+// Returns data grouped by month in descending order (most recent first).
 func GetMonthlyTotals(db *sql.DB, userID int) ([]map[string]interface{}, error) {
 	ctx, cancel := utils.DBContext()
 	defer cancel()
@@ -66,7 +68,9 @@ func GetMonthlyTotals(db *sql.DB, userID int) ([]map[string]interface{}, error) 
 	return results, nil
 }
 
-// Returns category-wise breakdown for the user
+// GetCategoryBreakdown provides a breakdown of spending by category for the specified user.
+// Optionally filters by date range using 'from' and 'to' parameters (format: YYYY-MM-DD).
+// Returns data grouped by category and type, sorted by type and total amount.
 func GetCategoryBreakdown(db *sql.DB, userID int, from, to string) ([]map[string]interface{}, error) {
 	base := `SELECT c.name, c.type, COALESCE(SUM(t.amount),0) AS total
 	 FROM transactions t
@@ -118,7 +122,9 @@ func GetCategoryBreakdown(db *sql.DB, userID int, from, to string) ([]map[string
 	return result, nil
 }
 
-// Group by month, week, or year for totals by period.
+// GetGroupTotals retrieves income and expense totals grouped by time period.
+// The granularity parameter must be 'month', 'week', or 'year'.
+// Returns data sorted by period in descending order (most recent first).
 func GetGroupTotals(db *sql.DB, userID int, granularity string) ([]map[string]interface{}, error) {
 	// Strict whitelist validation - explicitly reject invalid values
 	allowedGranularities := map[string]bool{
@@ -179,7 +185,8 @@ func GetGroupTotals(db *sql.DB, userID int, granularity string) ([]map[string]in
 	return results, nil
 }
 
-// Category-wise summary for a specific month (or any period you want)
+// GetCategoryMonthSummary provides a category breakdown for a specific month.
+// Returns aggregated expenses and income grouped by category for the specified year and month.
 func GetCategoryMonthSummary(db *sql.DB, userID int, year, month int) ([]map[string]interface{}, error) {
 	query := `
 		SELECT c.name, c.type, COALESCE(SUM(t.amount),0)

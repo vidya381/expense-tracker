@@ -19,6 +19,9 @@ var (
 	ErrInvalidCredentials = errors.New("invalid_credentials")
 )
 
+// RegisterUser creates a new user account with the provided credentials.
+// Returns ErrEmailExists if email is already registered, ErrUsernameExists if username is taken.
+// The password is hashed using bcrypt before storage.
 func RegisterUser(db *sql.DB, username, email, password string) error {
 	// Check if email exists
 	var exists bool
@@ -57,6 +60,9 @@ func RegisterUser(db *sql.DB, username, email, password string) error {
 	return nil
 }
 
+// LoginUser authenticates a user with email and password, returning a JWT token on success.
+// Returns ErrUserNotFound if the email doesn't exist, ErrInvalidCredentials if password is incorrect.
+// The JWT token expires after 72 hours and contains the user ID in its claims.
 func LoginUser(db *sql.DB, email, password, jwtSecret string) (string, error) {
 	var userID int
 	var hashedPassword string

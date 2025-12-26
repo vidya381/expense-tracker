@@ -10,7 +10,9 @@ import (
 	"github.com/vidya381/expense-tracker-backend/utils"
 )
 
-// Validate the recurrence field and insert if valid
+// AddRecurringTransaction creates a new recurring transaction that automatically generates transactions.
+// Validates that the recurrence is 'daily', 'weekly', 'monthly', or 'yearly' and that the category belongs to the user.
+// Recurring transactions are processed by a background job to create actual transactions.
 func AddRecurringTransaction(db *sql.DB, rt models.RecurringTransaction) error {
 	rec := strings.ToLower(rt.Recurrence)
 	if rec != "daily" && rec != "weekly" && rec != "monthly" && rec != "yearly" {
@@ -39,7 +41,8 @@ func AddRecurringTransaction(db *sql.DB, rt models.RecurringTransaction) error {
 	return err
 }
 
-// Lists all recurring transactions for a user
+// ListRecurringTransactions retrieves all recurring transactions for the specified user.
+// Includes information about when each recurring transaction was last processed.
 func ListRecurringTransactions(db *sql.DB, userID int) ([]models.RecurringTransaction, error) {
 	ctx, cancel := utils.DBContext()
 	defer cancel()
@@ -75,7 +78,9 @@ func ListRecurringTransactions(db *sql.DB, userID int) ([]models.RecurringTransa
 	return list, nil
 }
 
-// Edits a recurring transaction. Only fields that make sense are updatable.
+// EditRecurringTransaction updates an existing recurring transaction's amount, description, start date, and recurrence.
+// Verifies that the recurring transaction belongs to the user before updating.
+// Returns an error if the transaction doesn't exist or belongs to another user.
 func EditRecurringTransaction(db *sql.DB, userID, id int, amount float64, description, startDate, recurrence string) error {
 	ctx, cancel := utils.DBContext()
 	defer cancel()
@@ -102,7 +107,9 @@ func EditRecurringTransaction(db *sql.DB, userID, id int, amount float64, descri
 	return nil
 }
 
-// Delete recurring transaction
+// DeleteRecurringTransaction removes a recurring transaction from the database.
+// Returns an error if the transaction doesn't exist or belongs to another user.
+// Note: This does not delete the transactions that were already created from this recurring rule.
 func DeleteRecurringTransaction(db *sql.DB, id, userID int) error {
 	ctx, cancel := utils.DBContext()
 	defer cancel()

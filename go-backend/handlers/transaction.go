@@ -27,7 +27,8 @@ func verifyCategoryOwnership(db *sql.DB, userID, categoryID int) error {
 	return nil
 }
 
-// Create a new transaction for the user
+// AddTransaction creates a new expense or income transaction for the user.
+// Verifies that the specified category belongs to the user before creation.
 func AddTransaction(db *sql.DB, tx models.Transaction) error {
 	// Verify category ownership
 	if err := verifyCategoryOwnership(db, tx.UserID, tx.CategoryID); err != nil {
@@ -44,7 +45,8 @@ func AddTransaction(db *sql.DB, tx models.Transaction) error {
 	return err
 }
 
-// Fetch all transactions for a user
+// ListTransactions retrieves all transactions for the specified user, including category details.
+// Returns transactions in descending order by date (newest first).
 func ListTransactions(db *sql.DB, userID int) ([]models.Transaction, error) {
 	ctx, cancel := utils.DBContext()
 	defer cancel()
@@ -98,7 +100,9 @@ func ListTransactions(db *sql.DB, userID int) ([]models.Transaction, error) {
 	return transactions, nil
 }
 
-// Update an existing transaction
+// UpdateTransaction modifies an existing transaction's amount, description, category, and date.
+// Verifies category ownership and that the transaction belongs to the user.
+// Returns an error if the transaction doesn't exist or belongs to another user.
 func UpdateTransaction(db *sql.DB, tx models.Transaction) error {
 	// Verify category ownership
 	if err := verifyCategoryOwnership(db, tx.UserID, tx.CategoryID); err != nil {
@@ -129,7 +133,8 @@ func UpdateTransaction(db *sql.DB, tx models.Transaction) error {
 	return nil
 }
 
-// Delete a transaction
+// DeleteTransaction removes a transaction from the database.
+// Returns an error if the transaction doesn't exist or belongs to another user.
 func DeleteTransaction(db *sql.DB, id, userID int) error {
 	ctx, cancel := utils.DBContext()
 	defer cancel()
@@ -152,7 +157,9 @@ func DeleteTransaction(db *sql.DB, id, userID int) error {
 	return nil
 }
 
-// FilterTransactionsPaginated supports filtering, pagination, and sorting.
+// FilterTransactionsPaginated retrieves transactions with filtering, pagination, and sorting options.
+// Supports filtering by keyword (matches description or category name), category ID, date range, and amount range.
+// Results can be ordered by 'date' or 'amount' in ascending or descending order.
 func FilterTransactionsPaginated(
 	db *sql.DB,
 	userID int,

@@ -109,7 +109,9 @@ func ListBudgets(db *sql.DB, userID int) ([]models.Budget, error) {
 	return budgets, nil
 }
 
-// UpdateBudget updates an existing budget
+// UpdateBudget modifies an existing budget's amount and alert threshold.
+// Verifies that the budget belongs to the user before updating.
+// Returns an error if the budget doesn't exist or belongs to another user.
 func UpdateBudget(db *sql.DB, userID, budgetID int, amount float64, alertThreshold int) error {
 	if alertThreshold < constants.MinAlertThreshold || alertThreshold > constants.MaxAlertThreshold {
 		return fmt.Errorf("alert threshold must be between %d and %d", constants.MinAlertThreshold, constants.MaxAlertThreshold)
@@ -139,7 +141,8 @@ func UpdateBudget(db *sql.DB, userID, budgetID int, amount float64, alertThresho
 	return nil
 }
 
-// DeleteBudget removes a budget
+// DeleteBudget removes a budget from the database.
+// Returns an error if the budget doesn't exist or belongs to another user.
 func DeleteBudget(db *sql.DB, budgetID, userID int) error {
 	ctx, cancel := utils.DBContext()
 	defer cancel()
@@ -163,7 +166,8 @@ func DeleteBudget(db *sql.DB, budgetID, userID int) error {
 	return nil
 }
 
-// GetBudgetAlerts returns budgets that have exceeded their alert threshold
+// GetBudgetAlerts retrieves all budgets that have exceeded their alert threshold percentage.
+// Returns only budgets where current spending is at or above the configured alert level.
 func GetBudgetAlerts(db *sql.DB, userID int) ([]models.Budget, error) {
 	budgets, err := ListBudgets(db, userID)
 	if err != nil {

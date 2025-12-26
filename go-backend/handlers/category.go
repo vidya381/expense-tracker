@@ -8,7 +8,9 @@ import (
 	"github.com/vidya381/expense-tracker-backend/utils"
 )
 
-// AddCategory inserts a new category for the user
+// AddCategory creates a new expense or income category for the specified user.
+// Returns the newly created category ID on success, or an error if a category with
+// the same name and type already exists for this user.
 func AddCategory(db *sql.DB, userID int, name, ctype string) (int, error) {
 	ctx, cancel := utils.DBContext()
 	defer cancel()
@@ -38,7 +40,8 @@ func AddCategory(db *sql.DB, userID int, name, ctype string) (int, error) {
 	return categoryID, nil
 }
 
-// ListCategories fetches all categories for the user
+// ListCategories retrieves all expense and income categories belonging to the specified user.
+// Returns an empty slice if the user has no categories defined.
 func ListCategories(db *sql.DB, userID int) ([]models.Category, error) {
 	ctx, cancel := utils.DBContext()
 	defer cancel()

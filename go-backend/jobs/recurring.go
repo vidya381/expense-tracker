@@ -9,7 +9,8 @@ import (
 	"github.com/vidya381/expense-tracker-backend/utils"
 )
 
-// Launches the recurring transaction processor in a background goroutine.
+// StartRecurringJob launches the recurring transaction processor in a background goroutine.
+// Processes recurring transactions every hour to generate actual transactions based on schedules.
 // Returns a channel that can be closed to stop the job gracefully.
 func StartRecurringJob(db *sql.DB) chan struct{} {
 	quit := make(chan struct{})
@@ -33,7 +34,9 @@ func StartRecurringJob(db *sql.DB) chan struct{} {
 	return quit
 }
 
-// Checks all recurring rules, schedules transactions as needed.
+// ProcessRecurringTransactions checks all recurring transaction rules and creates due transactions.
+// Uses PostgreSQL advisory locks to prevent concurrent processing by multiple instances.
+// Transactions are created for all missed occurrences up to the current date.
 func ProcessRecurringTransactions(db *sql.DB) {
 	// Use PostgreSQL advisory lock to prevent multiple instances from processing simultaneously
 	// Lock ID: 123456789 (arbitrary number for this specific job)
@@ -118,7 +121,9 @@ func ProcessRecurringTransactions(db *sql.DB) {
 	}
 }
 
-// Returns all the recurrence dates up to today (inclusive).
+// GetAllMissedDueDates calculates all due dates for a recurring transaction up to today (inclusive).
+// Handles month-end and leap year edge cases for monthly and yearly recurrences.
+// Returns an empty slice if the start date is in the future or if there are no due dates.
 func GetAllMissedDueDates(rt models.RecurringTransaction, today time.Time) []time.Time {
 	layout := "2006-01-02"
 	start, err := time.Parse(layout, rt.StartDate)
