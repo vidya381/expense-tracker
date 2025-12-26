@@ -20,20 +20,14 @@ func AddRecurringTransaction(db *sql.DB, rt models.RecurringTransaction) error {
 	}
 
 	// Verify category ownership before creating recurring transaction
-	var count int
-	err := db.QueryRow("SELECT COUNT(*) FROM categories WHERE id = $1 AND user_id = $2",
-		rt.CategoryID, rt.UserID).Scan(&count)
-	if err != nil {
+	if err := utils.VerifyCategoryOwnership(db, rt.UserID, rt.CategoryID); err != nil {
 		return err
-	}
-	if count == 0 {
-		return fmt.Errorf("category not found or unauthorized")
 	}
 
 	ctx, cancel := utils.DBContext()
 	defer cancel()
 
-	_, err = db.ExecContext(ctx,
+	_, err := db.ExecContext(ctx,
 		`INSERT INTO recurring_transactions
 		(user_id, category_id, amount, description, start_date, recurrence)
 		VALUES ($1, $2, $3, $4, $5, $6)`,
@@ -96,15 +90,7 @@ func EditRecurringTransaction(db *sql.DB, userID, id int, amount float64, descri
 	}
 
 	// Check if any rows were actually updated
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return err
-	}
-	if rowsAffected == 0 {
-		return fmt.Errorf("recurring transaction not found or unauthorized")
-	}
-
-	return nil
+	return utils.CheckRowsAffected(result, "recurring transaction")
 }
 
 // DeleteRecurringTransaction removes a recurring transaction from the database.
@@ -121,13 +107,5 @@ func DeleteRecurringTransaction(db *sql.DB, id, userID int) error {
 	}
 
 	// Check if any rows were actually deleted
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return err
-	}
-	if rowsAffected == 0 {
-		return fmt.Errorf("recurring transaction not found or unauthorized")
-	}
-
-	return nil
+	return utils.CheckRowsAffected(result, "recurring transaction")
 }

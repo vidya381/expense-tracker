@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 
 	"github.com/vidya381/expense-tracker-backend/constants"
@@ -10,28 +9,11 @@ import (
 	"github.com/vidya381/expense-tracker-backend/utils"
 )
 
-// verifyCategoryOwnership checks if a category belongs to the user
-func verifyCategoryOwnership(db *sql.DB, userID, categoryID int) error {
-	if categoryID == 0 {
-		return nil // Allow no category
-	}
-	var count int
-	err := db.QueryRow("SELECT COUNT(*) FROM categories WHERE id = $1 AND user_id = $2",
-		categoryID, userID).Scan(&count)
-	if err != nil {
-		return err
-	}
-	if count == 0 {
-		return errors.New("category not found or unauthorized")
-	}
-	return nil
-}
-
 // AddTransaction creates a new expense or income transaction for the user.
 // Verifies that the specified category belongs to the user before creation.
 func AddTransaction(db *sql.DB, tx models.Transaction) error {
 	// Verify category ownership
-	if err := verifyCategoryOwnership(db, tx.UserID, tx.CategoryID); err != nil {
+	if err := utils.VerifyCategoryOwnership(db, tx.UserID, tx.CategoryID); err != nil {
 		return err
 	}
 
@@ -105,7 +87,7 @@ func ListTransactions(db *sql.DB, userID int) ([]models.Transaction, error) {
 // Returns an error if the transaction doesn't exist or belongs to another user.
 func UpdateTransaction(db *sql.DB, tx models.Transaction) error {
 	// Verify category ownership
-	if err := verifyCategoryOwnership(db, tx.UserID, tx.CategoryID); err != nil {
+	if err := utils.VerifyCategoryOwnership(db, tx.UserID, tx.CategoryID); err != nil {
 		return err
 	}
 
@@ -122,15 +104,7 @@ func UpdateTransaction(db *sql.DB, tx models.Transaction) error {
 	}
 
 	// Check if any rows were actually updated
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return err
-	}
-	if rowsAffected == 0 {
-		return errors.New("transaction not found or unauthorized")
-	}
-
-	return nil
+	return utils.CheckRowsAffected(result, "transaction")
 }
 
 // DeleteTransaction removes a transaction from the database.
@@ -146,15 +120,7 @@ func DeleteTransaction(db *sql.DB, id, userID int) error {
 	}
 
 	// Check if any rows were actually deleted
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return err
-	}
-	if rowsAffected == 0 {
-		return errors.New("transaction not found or unauthorized")
-	}
-
-	return nil
+	return utils.CheckRowsAffected(result, "transaction")
 }
 
 // FilterTransactionsPaginated retrieves transactions with filtering, pagination, and sorting options.
