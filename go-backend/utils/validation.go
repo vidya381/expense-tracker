@@ -91,7 +91,7 @@ func ValidateAmount(amount float64) error {
 	}
 
 	if amount > constants.MaxAmount {
-		return fmt.Errorf("amount is too large. Maximum allowed is %,.0f", float64(constants.MaxAmount))
+		return fmt.Errorf("amount is too large. Maximum allowed is %.0f", float64(constants.MaxAmount))
 	}
 
 	return nil

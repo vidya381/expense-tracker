@@ -21,7 +21,7 @@ func IsConnectionError(err error) bool {
 		"broken pipe",
 		"no such host",
 		"i/o timeout",
-		"EOF",
+		"eof",
 		"connection timed out",
 		"network is unreachable",
 		"too many connections",
