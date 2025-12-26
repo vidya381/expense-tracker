@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"net/mail"
 	"os"
@@ -33,16 +34,20 @@ var jwtSecret string
 var db *sql.DB
 
 func main() {
+	// Initialize structured logger
+	utils.InitLogger()
+
 	// Load .env file
 	err := godotenv.Load()
 	if err != nil {
-		fmt.Println("Warning: .env file not found")
+		slog.Warn(".env file not found, using system environment variables")
 	}
 
 	// Load and validate JWT secret
 	jwtSecret = os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
-		log.Fatal("JWT_SECRET environment variable is required")
+		slog.Error("JWT_SECRET environment variable is required")
+		os.Exit(1)
 	}
 
 	// Connect to database
@@ -63,7 +68,7 @@ func main() {
 	db.SetConnMaxLifetime(constants.ConnectionMaxLifetime)
 	db.SetConnMaxIdleTime(constants.ConnectionMaxIdleTime)
 
-	fmt.Println("Connected to PostgreSQL successfully!")
+	slog.Info("Connected to PostgreSQL successfully")
 
 	// Start recurring job and capture quit channel for graceful shutdown
 	recurringJobQuit := jobs.StartRecurringJob(db)
@@ -127,15 +132,16 @@ func main() {
 	}
 
 	go func() {
-		fmt.Printf("Server running at http://localhost%s\n", constants.DefaultServerPort)
+		slog.Info("Server starting", "address", fmt.Sprintf("http://localhost%s", constants.DefaultServerPort))
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Server error: %v", err)
+			slog.Error("Server error", "error", err)
+			os.Exit(1)
 		}
 	}()
 
 	// Wait for shutdown signal
 	<-sigChan
-	fmt.Println("\nShutdown signal received, stopping server...")
+	slog.Info("Shutdown signal received, stopping server...")
 
 	// Close recurring job gracefully
 	close(recurringJobQuit)
@@ -143,7 +149,7 @@ func main() {
 	// Give server time to finish ongoing requests
 	time.Sleep(constants.ShutdownGracePeriod)
 
-	fmt.Println("Server stopped")
+	slog.Info("Server stopped")
 }
 
 // Builds the PostgreSQL connection URL from environment variables for use with sql.Open

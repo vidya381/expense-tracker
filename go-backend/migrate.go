@@ -3,48 +3,57 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"log/slog"
 	"os"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/joho/godotenv"
+	"github.com/vidya381/expense-tracker-backend/utils"
 )
 
 func main() {
+	// Initialize structured logger
+	utils.InitLogger()
+
 	// Load .env file
 	err := godotenv.Load()
 	if err != nil {
-		fmt.Println("Warning: .env file not found")
+		slog.Warn(".env file not found")
 	}
 
 	// Connect to database
 	db, err := sql.Open("pgx", getDBConnURL())
 	if err != nil {
-		panic(err)
+		slog.Error("Failed to open database connection", "error", err)
+		os.Exit(1)
 	}
 	defer db.Close()
 
 	// Test connection
 	if err := db.Ping(); err != nil {
-		panic("Failed to ping DB: " + err.Error())
+		slog.Error("Failed to ping database", "error", err)
+		os.Exit(1)
 	}
 
-	fmt.Println("Connected to PostgreSQL successfully!")
+	slog.Info("Connected to PostgreSQL successfully")
 
 	// Read and execute migration file
 	migrationFile := "migrations/001_create_budgets_table.sql"
 	sqlBytes, err := os.ReadFile(migrationFile)
 	if err != nil {
-		panic(fmt.Sprintf("Failed to read migration file: %v", err))
+		slog.Error("Failed to read migration file", "file", migrationFile, "error", err)
+		os.Exit(1)
 	}
 
 	sqlStatement := string(sqlBytes)
 	_, err = db.Exec(sqlStatement)
 	if err != nil {
-		panic(fmt.Sprintf("Failed to execute migration: %v", err))
+		slog.Error("Failed to execute migration", "error", err)
+		os.Exit(1)
 	}
 
-	fmt.Println("✓ Migration applied successfully!")
-	fmt.Println("✓ Budgets table created")
+	slog.Info("Migration applied successfully")
+	slog.Info("Budgets table created")
 }
 
 func getDBConnURL() string {

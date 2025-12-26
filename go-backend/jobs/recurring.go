@@ -2,7 +2,7 @@ package jobs
 
 import (
 	"database/sql"
-	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/vidya381/expense-tracker-backend/models"
@@ -26,7 +26,7 @@ func StartRecurringJob(db *sql.DB) chan struct{} {
 			case <-ticker.C:
 				ProcessRecurringTransactions(db)
 			case <-quit:
-				fmt.Println("Recurring job shutting down gracefully...")
+				slog.Info("Recurring job shutting down gracefully")
 				return
 			}
 		}
@@ -43,7 +43,7 @@ func ProcessRecurringTransactions(db *sql.DB) {
 	var lockAcquired bool
 	err := db.QueryRow("SELECT pg_try_advisory_lock(123456789)").Scan(&lockAcquired)
 	if err != nil {
-		fmt.Println("Recurring jobs: error acquiring lock:", err)
+		slog.Error("Recurring jobs: error acquiring lock", "error", err)
 		return
 	}
 	if !lockAcquired {
@@ -55,7 +55,7 @@ func ProcessRecurringTransactions(db *sql.DB) {
 	defer func() {
 		_, err := db.Exec("SELECT pg_advisory_unlock(123456789)")
 		if err != nil {
-			fmt.Println("Recurring jobs: error releasing lock:", err)
+			slog.Error("Recurring jobs: error releasing lock", "error", err)
 		}
 	}()
 
@@ -64,7 +64,7 @@ func ProcessRecurringTransactions(db *sql.DB) {
 		FROM recurring_transactions
 	`)
 	if err != nil {
-		fmt.Println("Recurring jobs: error querying:", err)
+		slog.Error("Recurring jobs: error querying", "error", err)
 		return
 	}
 	defer rows.Close()
@@ -78,7 +78,7 @@ func ProcessRecurringTransactions(db *sql.DB) {
 
 		err := rows.Scan(&rt.ID, &rt.UserID, &rt.CategoryID, &rt.Amount, &rt.Description, &startDate, &rt.Recurrence, &lastOccurrence)
 		if err != nil {
-			fmt.Println("Recurring jobs: error scanning row:", err)
+			slog.Error("Recurring jobs: error scanning row", "error", err)
 			continue
 		}
 		rt.StartDate = startDate.Format("2006-01-02")
@@ -101,10 +101,9 @@ func ProcessRecurringTransactions(db *sql.DB) {
 					rt.UserID, rt.CategoryID, rt.Amount, rt.Description, dueDate.Format("2006-01-02"),
 				)
 				if err != nil {
-					fmt.Println("Recurring jobs: error creating transaction:", err)
+					slog.Error("Recurring jobs: error creating transaction", "error", err, "recurring_id", rt.ID)
 					continue
 				}
-				// fmt.Printf("Created recurring transaction instance for user %d on %s\n", rt.UserID, dueDate.Format("2006-01-02"))
 			}
 			// Update last_occurrence to latest due date
 			latestDue := dueDates[len(dueDates)-1]
@@ -113,9 +112,9 @@ func ProcessRecurringTransactions(db *sql.DB) {
 				latestDue.Format("2006-01-02"), rt.ID)
 			cancel()
 			if err != nil {
-				fmt.Println("Recurring jobs: error updating last_occurrence:", err)
+				slog.Error("Recurring jobs: error updating last_occurrence", "error", err, "recurring_id", rt.ID)
 			} else {
-				fmt.Printf("Updated last_occurrence for recurring id=%d to %s\n", rt.ID, latestDue.Format("2006-01-02"))
+				slog.Info("Updated recurring transaction", "recurring_id", rt.ID, "last_occurrence", latestDue.Format("2006-01-02"))
 			}
 		}
 	}

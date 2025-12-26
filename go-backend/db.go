@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 
 	"github.com/jackc/pgx/v5"
@@ -12,7 +13,7 @@ import (
 func connectDB() (*pgx.Conn, error) {
 	err := godotenv.Load()
 	if err != nil {
-		fmt.Println("Warning: .env file not found, using system env vars")
+		slog.Warn(".env file not found, using system environment variables")
 	}
 
 	dbUrl := fmt.Sprintf(
