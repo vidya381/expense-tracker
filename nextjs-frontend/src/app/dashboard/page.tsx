@@ -135,6 +135,19 @@ export default function Dashboard() {
             const shouldRefresh = sessionStorage.getItem('refreshDashboard');
             if (shouldRefresh === 'true') {
                 sessionStorage.removeItem('refreshDashboard');
+
+                // Restore scroll position after data refresh
+                const savedScroll = sessionStorage.getItem('dashboardScrollPosition');
+                if (savedScroll && scrollContainerRef.current) {
+                    // Wait for data to load, then restore scroll
+                    setTimeout(() => {
+                        if (scrollContainerRef.current) {
+                            scrollContainerRef.current.scrollTop = parseInt(savedScroll, 10);
+                            sessionStorage.removeItem('dashboardScrollPosition');
+                        }
+                    }, 100);
+                }
+
                 setRefreshTrigger(prev => prev + 1);
             }
         }
@@ -154,12 +167,21 @@ export default function Dashboard() {
             }
         }
 
+        // Save scroll position before leaving page (e.g., navigating to edit)
+        function handleBeforeUnload() {
+            if (scrollContainerRef.current) {
+                sessionStorage.setItem('dashboardScrollPosition', scrollContainerRef.current.scrollTop.toString());
+            }
+        }
+
         document.addEventListener('visibilitychange', handleVisibilityChange);
         window.addEventListener('focus', handleFocus);
+        window.addEventListener('beforeunload', handleBeforeUnload);
 
         return () => {
             document.removeEventListener('visibilitychange', handleVisibilityChange);
             window.removeEventListener('focus', handleFocus);
+            window.removeEventListener('beforeunload', handleBeforeUnload);
         };
     }, [authChecked, token]);
 
@@ -283,6 +305,17 @@ export default function Dashboard() {
                 setError(err.message || 'Unknown error');
             } finally {
                 setLoading(false);
+
+                // Restore scroll position after data loads
+                const savedScroll = sessionStorage.getItem('dashboardScrollPosition');
+                if (savedScroll && scrollContainerRef.current) {
+                    setTimeout(() => {
+                        if (scrollContainerRef.current) {
+                            scrollContainerRef.current.scrollTop = parseInt(savedScroll, 10);
+                            sessionStorage.removeItem('dashboardScrollPosition');
+                        }
+                    }, 100);
+                }
             }
         }
 
@@ -1203,6 +1236,11 @@ export default function Dashboard() {
                                     categories={categories}
                                     setCategories={setCategories}
                                     onSuccess={() => {
+                                        // Save scroll position before refreshing
+                                        if (scrollContainerRef.current) {
+                                            const scrollPos = scrollContainerRef.current.scrollTop;
+                                            sessionStorage.setItem('dashboardScrollPosition', scrollPos.toString());
+                                        }
                                         setShowTransactionModal(false);
                                         setEditingTransaction(null);
                                         setRefreshTrigger(prev => prev + 1);
