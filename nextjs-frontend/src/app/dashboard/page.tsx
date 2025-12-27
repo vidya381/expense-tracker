@@ -156,8 +156,10 @@ export default function Dashboard() {
 
         // Save scroll position before leaving page (e.g., navigating to edit)
         function handleBeforeUnload() {
+            // Save both scroll positions
+            sessionStorage.setItem('dashboardScrollPosition', window.scrollY.toString());
             if (scrollContainerRef.current) {
-                sessionStorage.setItem('dashboardScrollPosition', scrollContainerRef.current.scrollTop.toString());
+                sessionStorage.setItem('transactionHistoryScrollPosition', scrollContainerRef.current.scrollTop.toString());
             }
         }
 
@@ -336,17 +338,31 @@ export default function Dashboard() {
         setTransactions(filtered);
     }, [filterCategory, minAmount, maxAmount, allTransactions]);
 
-    // Restore scroll position after transactions are rendered
+    // Restore scroll positions after transactions are rendered
     useEffect(() => {
-        const savedScroll = sessionStorage.getItem('dashboardScrollPosition');
-        if (savedScroll && scrollContainerRef.current && !loading) {
+        const savedDashboardScroll = sessionStorage.getItem('dashboardScrollPosition');
+        const savedTransactionScroll = sessionStorage.getItem('transactionHistoryScrollPosition');
+        console.log('Restore effect triggered. dashboardScroll:', savedDashboardScroll, 'transactionScroll:', savedTransactionScroll, 'loading:', loading, 'transactions count:', transactions.length);
+
+        if (!loading && (savedDashboardScroll || savedTransactionScroll)) {
             // Use double requestAnimationFrame to ensure DOM has fully rendered
             requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
-                    if (scrollContainerRef.current) {
-                        scrollContainerRef.current.scrollTop = parseInt(savedScroll, 10);
+                    // Restore main dashboard scroll
+                    if (savedDashboardScroll) {
+                        console.log('Restoring window scroll to:', savedDashboardScroll);
+                        window.scrollTo(0, parseInt(savedDashboardScroll, 10));
                         sessionStorage.removeItem('dashboardScrollPosition');
                     }
+
+                    // Restore transaction history container scroll
+                    if (savedTransactionScroll && scrollContainerRef.current) {
+                        console.log('Restoring transaction history scroll to:', savedTransactionScroll);
+                        scrollContainerRef.current.scrollTop = parseInt(savedTransactionScroll, 10);
+                        sessionStorage.removeItem('transactionHistoryScrollPosition');
+                    }
+
+                    console.log('Both scroll positions restored and cleared from storage');
                 });
             });
         }
@@ -1228,11 +1244,17 @@ export default function Dashboard() {
                                     categories={categories}
                                     setCategories={setCategories}
                                     onSuccess={() => {
-                                        // Save scroll position before refreshing
+                                        // Save both scroll positions before refreshing
+                                        const dashboardScrollPos = window.scrollY;
+                                        console.log('Saving window scroll position:', dashboardScrollPos);
+                                        sessionStorage.setItem('dashboardScrollPosition', dashboardScrollPos.toString());
+
                                         if (scrollContainerRef.current) {
-                                            const scrollPos = scrollContainerRef.current.scrollTop;
-                                            sessionStorage.setItem('dashboardScrollPosition', scrollPos.toString());
+                                            const transactionScrollPos = scrollContainerRef.current.scrollTop;
+                                            console.log('Saving transaction history scroll position:', transactionScrollPos);
+                                            sessionStorage.setItem('transactionHistoryScrollPosition', transactionScrollPos.toString());
                                         }
+
                                         setShowTransactionModal(false);
                                         setEditingTransaction(null);
                                         setRefreshTrigger(prev => prev + 1);
