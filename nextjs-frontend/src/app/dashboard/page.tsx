@@ -199,8 +199,9 @@ export default function Dashboard() {
                 const txData = await txRes.json();
 
                 // Ensure no duplicates in initial load
-                const uniqueTransactions = Array.isArray(txData)
-                    ? txData.filter((tx: Transaction, index: number, self: Transaction[]) =>
+                const txArray = txData.transactions || [];
+                const uniqueTransactions = Array.isArray(txArray)
+                    ? txArray.filter((tx: Transaction, index: number, self: Transaction[]) =>
                         index === self.findIndex((t: Transaction) => t.id === tx.id)
                     )
                     : [];
@@ -343,7 +344,8 @@ export default function Dashboard() {
             }
 
             const moreTx = await res.json();
-            const newTransactions = Array.isArray(moreTx) ? moreTx : [];
+            const moreTxArray = moreTx.transactions || [];
+            const newTransactions = Array.isArray(moreTxArray) ? moreTxArray : [];
 
             // Filter out duplicates by ID before adding
             const existingIds = new Set(transactions.map(tx => tx.id));

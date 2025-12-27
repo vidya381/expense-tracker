@@ -13,15 +13,15 @@ interface Category {
 }
 
 interface RecurringTransaction {
-    ID: number;
-    UserID: number;
-    CategoryID: number;
-    Amount: number;
-    Description: string;
-    StartDate: string;
-    Recurrence: string;
-    LastOccurrence: string | null;
-    CreatedAt: string;
+    id: number;
+    user_id: number;
+    category_id: number;
+    amount: number;
+    description: string;
+    start_date: string;
+    recurrence: string;
+    last_occurrence: string | null;
+    created_at: string;
 }
 
 export default function RecurringTransactionsPage() {
@@ -248,14 +248,14 @@ export default function RecurringTransactionsPage() {
     };
 
     const handleEdit = (rec: RecurringTransaction) => {
-        const category = categories.find(c => c.id === rec.CategoryID);
-        setEditingId(rec.ID);
+        const category = categories.find(c => c.id === rec.category_id);
+        setEditingId(rec.id);
         setCategoryInput(category?.name || '');
-        setCategoryId(rec.CategoryID);
-        setAmount(String(rec.Amount));
-        setDescription(rec.Description);
-        setStartDate(rec.StartDate);
-        setRecurrence(rec.Recurrence as any);
+        setCategoryId(rec.category_id);
+        setAmount(String(rec.amount));
+        setDescription(rec.description);
+        setStartDate(rec.start_date);
+        setRecurrence(rec.recurrence as any);
         setShowModal(true);
     };
 
@@ -275,7 +275,7 @@ export default function RecurringTransactionsPage() {
 
             if (!response.ok) throw new Error('Failed to delete');
 
-            setRecurring(prev => prev.filter(r => r.ID !== id));
+            setRecurring(prev => prev.filter(r => r.id !== id));
             setDeleteConfirm(null);
         } catch (err: any) {
             alert('Failed to delete: ' + err.message);
@@ -346,7 +346,7 @@ export default function RecurringTransactionsPage() {
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {recurring.map((rec) => {
-                            const category = categories.find(c => c.id === rec.CategoryID);
+                            const category = categories.find(c => c.id === rec.category_id);
                             const isIncome = category?.type === 'income';
 
                             // Frequency colors matching dashboard style (soft backgrounds)
@@ -356,21 +356,21 @@ export default function RecurringTransactionsPage() {
                                 monthly: { bg: 'bg-indigo-50', border: 'border-indigo-200', text: 'text-indigo-700', gradient: 'from-indigo-500 to-purple-600', icon: '🗓️' },
                                 yearly: { bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-700', gradient: 'from-amber-500 to-orange-600', icon: '📊' }
                             };
-                            const config = frequencyConfig[rec.Recurrence as keyof typeof frequencyConfig] || frequencyConfig.monthly;
+                            const config = frequencyConfig[rec.recurrence as keyof typeof frequencyConfig] || frequencyConfig.monthly;
 
                             return (
                                 <div
-                                    key={rec.ID}
+                                    key={rec.id}
                                     className={`group bg-gradient-to-br ${config.bg} p-5 rounded-xl border-2 ${config.border} shadow-md hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1`}
                                 >
                                     <div className="flex items-start justify-between mb-4">
                                         <div className="flex-1">
                                             <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">
-                                                {rec.Description || 'No description'}
+                                                {rec.description || 'No description'}
                                             </h3>
                                             <div className="flex items-center gap-2 mb-2">
                                                 <span className={`text-xs px-2 py-1 bg-white rounded-full ${config.text} font-semibold capitalize`}>
-                                                    {config.icon} {rec.Recurrence}
+                                                    {config.icon} {rec.recurrence}
                                                 </span>
                                                 <span className={`text-xs px-2 py-1 bg-white rounded-full font-semibold ${
                                                     isIncome ? 'text-emerald-700' : 'text-gray-700'
@@ -386,7 +386,7 @@ export default function RecurringTransactionsPage() {
 
                                     <div className="mb-4">
                                         <p className={`text-3xl font-bold ${isIncome ? 'text-emerald-600' : 'text-gray-900'}`}>
-                                            {isIncome && '+'}{!isIncome && ''}${rec.Amount.toFixed(2)}
+                                            {isIncome && '+'}{!isIncome && ''}${rec.amount.toFixed(2)}
                                         </p>
                                         <p className="text-xs text-gray-600 mt-1">
                                             {isIncome ? '💰 Income' : '💳 Expense'}
@@ -396,7 +396,7 @@ export default function RecurringTransactionsPage() {
                                     <div className="flex items-center justify-between pt-3 border-t border-gray-200">
                                         <div className="flex items-center gap-2 text-xs text-gray-600">
                                             <FiCalendar className="w-4 h-4" />
-                                            <span>Starts {format(parseISO(rec.StartDate), 'MMM dd, yyyy')}</span>
+                                            <span>Starts {format(parseISO(rec.start_date), 'MMM dd, yyyy')}</span>
                                         </div>
                                         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                             <button
@@ -649,10 +649,10 @@ export default function RecurringTransactionsPage() {
                         </div>
                         <div className="mb-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
                             <p className="text-sm font-semibold text-gray-900 mb-1">
-                                {deleteConfirm.Description || 'No description'}
+                                {deleteConfirm.description || 'No description'}
                             </p>
                             <p className="text-sm text-gray-600">
-                                ${deleteConfirm.Amount.toFixed(2)} - {deleteConfirm.Recurrence}
+                                ${deleteConfirm.amount.toFixed(2)} - {deleteConfirm.recurrence}
                             </p>
                         </div>
                         <div className="flex gap-3 justify-end">
@@ -664,7 +664,7 @@ export default function RecurringTransactionsPage() {
                                 Cancel
                             </button>
                             <button
-                                onClick={() => handleDelete(deleteConfirm.ID)}
+                                onClick={() => handleDelete(deleteConfirm.id)}
                                 disabled={deleting}
                                 className="px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl font-semibold hover:from-red-700 hover:to-red-800 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50"
                             >
