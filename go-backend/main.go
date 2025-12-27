@@ -43,12 +43,14 @@ func main() {
 		slog.Warn(".env file not found, using system environment variables")
 	}
 
-	// Load and validate JWT secret
-	jwtSecret = os.Getenv("JWT_SECRET")
-	if jwtSecret == "" {
-		slog.Error("JWT_SECRET environment variable is required")
+	// Validate all required environment variables
+	if err := utils.ValidateConfig(); err != nil {
+		slog.Error("Configuration validation failed", "error", err)
 		os.Exit(1)
 	}
+
+	// Load JWT secret (already validated above)
+	jwtSecret = os.Getenv("JWT_SECRET")
 
 	// Connect to database
 	db, err = sql.Open("pgx", getDBConnURL())

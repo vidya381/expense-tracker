@@ -8,12 +8,18 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/joho/godotenv"
+	"github.com/vidya381/expense-tracker-backend/utils"
 )
 
 func connectDB() (*pgx.Conn, error) {
 	err := godotenv.Load()
 	if err != nil {
 		slog.Warn(".env file not found, using system environment variables")
+	}
+
+	// Validate database configuration
+	if err := utils.ValidateDBConfig(); err != nil {
+		return nil, err
 	}
 
 	dbUrl := fmt.Sprintf(

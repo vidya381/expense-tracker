@@ -21,6 +21,12 @@ func main() {
 		slog.Warn(".env file not found")
 	}
 
+	// Validate required database environment variables
+	if err := utils.ValidateDBConfig(); err != nil {
+		slog.Error("Configuration validation failed", "error", err)
+		os.Exit(1)
+	}
+
 	// Connect to database
 	db, err := sql.Open("pgx", getDBConnURL())
 	if err != nil {
