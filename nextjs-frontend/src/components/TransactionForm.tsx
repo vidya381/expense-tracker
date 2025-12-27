@@ -420,6 +420,7 @@ export default function TransactionForm({
                         type="date"
                         value={date}
                         onChange={(e) => setDate(e.target.value)}
+                        max={new Date().toISOString().split('T')[0]}
                         disabled={loadingSubmit}
                         className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 disabled:bg-gray-50 disabled:cursor-not-allowed bg-white text-gray-900"
                         required

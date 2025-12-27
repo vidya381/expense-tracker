@@ -90,9 +90,9 @@ func TestValidateTransactionDate(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "valid date - future",
+			name:    "invalid date - future date",
 			date:    "2030-12-31",
-			wantErr: false,
+			wantErr: true,
 		},
 		{
 			name:    "invalid date - empty string",

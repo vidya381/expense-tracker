@@ -38,16 +38,31 @@ func ValidateDate(dateStr string) error {
 	return nil
 }
 
-// ValidateTransactionDate validates date for transactions with more lenient rules
+// ValidateTransactionDate validates date for transactions - only allows past dates up to today
 func ValidateTransactionDate(dateStr string) error {
 	if dateStr == "" {
 		return fmt.Errorf("date is required")
 	}
 
-	// Parse the date in YYYY-MM-DD format
-	_, err := time.Parse("2006-01-02", dateStr)
+	// Parse the date in YYYY-MM-DD format (returns UTC time at 00:00:00)
+	parsedDate, err := time.Parse("2006-01-02", dateStr)
 	if err != nil {
 		return fmt.Errorf("invalid date format. Expected YYYY-MM-DD (e.g., 2025-12-25)")
+	}
+
+	// Use UTC and truncate to date-only for consistent comparison across timezones
+	now := time.Now().UTC()
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+
+	// Check if the date is in the future
+	if parsedDate.After(today) {
+		return fmt.Errorf("transaction date cannot be in the future")
+	}
+
+	// Check if the date is not too far in the past (more than 10 years)
+	tenYearsAgo := today.AddDate(-10, 0, 0)
+	if parsedDate.Before(tenYearsAgo) {
+		return fmt.Errorf("transaction date cannot be more than 10 years in the past")
 	}
 
 	return nil
