@@ -135,19 +135,6 @@ export default function Dashboard() {
             const shouldRefresh = sessionStorage.getItem('refreshDashboard');
             if (shouldRefresh === 'true') {
                 sessionStorage.removeItem('refreshDashboard');
-
-                // Restore scroll position after data refresh
-                const savedScroll = sessionStorage.getItem('dashboardScrollPosition');
-                if (savedScroll && scrollContainerRef.current) {
-                    // Wait for data to load, then restore scroll
-                    setTimeout(() => {
-                        if (scrollContainerRef.current) {
-                            scrollContainerRef.current.scrollTop = parseInt(savedScroll, 10);
-                            sessionStorage.removeItem('dashboardScrollPosition');
-                        }
-                    }, 100);
-                }
-
                 setRefreshTrigger(prev => prev + 1);
             }
         }
@@ -305,17 +292,6 @@ export default function Dashboard() {
                 setError(err.message || 'Unknown error');
             } finally {
                 setLoading(false);
-
-                // Restore scroll position after data loads
-                const savedScroll = sessionStorage.getItem('dashboardScrollPosition');
-                if (savedScroll && scrollContainerRef.current) {
-                    setTimeout(() => {
-                        if (scrollContainerRef.current) {
-                            scrollContainerRef.current.scrollTop = parseInt(savedScroll, 10);
-                            sessionStorage.removeItem('dashboardScrollPosition');
-                        }
-                    }, 100);
-                }
             }
         }
 
@@ -359,6 +335,22 @@ export default function Dashboard() {
 
         setTransactions(filtered);
     }, [filterCategory, minAmount, maxAmount, allTransactions]);
+
+    // Restore scroll position after transactions are rendered
+    useEffect(() => {
+        const savedScroll = sessionStorage.getItem('dashboardScrollPosition');
+        if (savedScroll && scrollContainerRef.current && !loading) {
+            // Use double requestAnimationFrame to ensure DOM has fully rendered
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    if (scrollContainerRef.current) {
+                        scrollContainerRef.current.scrollTop = parseInt(savedScroll, 10);
+                        sessionStorage.removeItem('dashboardScrollPosition');
+                    }
+                });
+            });
+        }
+    }, [transactions, loading]);
 
     // Fetch categories when transaction modal opens
     useEffect(() => {
