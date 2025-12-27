@@ -10,7 +10,9 @@ import { format, parseISO } from 'date-fns';
 const MONTH_NAMES_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 function formatCalendarDate(dateStr: string): string {
-    const [year, month, day] = dateStr.split('-').map(Number);
+    // Extract just the date part if it's an ISO timestamp (e.g., "2025-12-20T00:00:00Z")
+    const datePart = dateStr.split('T')[0];
+    const [year, month, day] = datePart.split('-').map(Number);
     return `${MONTH_NAMES_SHORT[month - 1]} ${day}, ${year}`;
 }
 

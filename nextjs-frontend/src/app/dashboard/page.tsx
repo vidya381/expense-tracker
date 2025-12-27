@@ -12,7 +12,9 @@ const MONTH_NAMES_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug
 const MONTH_NAMES_LONG = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 function formatCalendarDate(dateStr: string, formatType: 'full' | 'month' | 'day' | 'monthYear'): string {
-    const [year, month, day] = dateStr.split('-').map(Number);
+    // Extract just the date part if it's an ISO timestamp (e.g., "2025-12-20T00:00:00Z")
+    const datePart = dateStr.split('T')[0];
+    const [year, month, day] = datePart.split('-').map(Number);
 
     switch (formatType) {
         case 'full':
@@ -24,7 +26,7 @@ function formatCalendarDate(dateStr: string, formatType: 'full' | 'month' | 'day
         case 'monthYear':
             return `${MONTH_NAMES_LONG[month - 1]} ${year}`;
         default:
-            return dateStr;
+            return datePart;
     }
 }
 
