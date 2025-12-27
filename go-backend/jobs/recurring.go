@@ -93,7 +93,7 @@ func ProcessRecurringTransactions(db *sql.DB) {
 
 		dueDates := GetAllMissedDueDates(rt, now)
 		if len(dueDates) > 0 {
-			ctx, cancel := utils.DBContext()
+			ctx, cancel := utils.DBContext(nil)
 			for _, dueDate := range dueDates {
 				_, err := db.ExecContext(ctx,
 					`INSERT INTO transactions (user_id, category_id, amount, description, date)

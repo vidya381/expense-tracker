@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 
@@ -11,8 +12,8 @@ import (
 // AddCategory creates a new expense or income category for the specified user.
 // Returns the newly created category ID on success, or an error if a category with
 // the same name and type already exists for this user.
-func AddCategory(db *sql.DB, userID int, name, ctype string) (int, error) {
-	ctx, cancel := utils.DBContext()
+func AddCategory(ctx context.Context, db *sql.DB, userID int, name, ctype string) (int, error) {
+	ctx, cancel := utils.DBContext(ctx)
 	defer cancel()
 
 	// Check if category already exists for this user/type
@@ -42,8 +43,8 @@ func AddCategory(db *sql.DB, userID int, name, ctype string) (int, error) {
 
 // ListCategories retrieves all expense and income categories belonging to the specified user.
 // Returns an empty slice if the user has no categories defined.
-func ListCategories(db *sql.DB, userID int) ([]models.Category, error) {
-	ctx, cancel := utils.DBContext()
+func ListCategories(ctx context.Context, db *sql.DB, userID int) ([]models.Category, error) {
+	ctx, cancel := utils.DBContext(ctx)
 	defer cancel()
 
 	rows, err := db.QueryContext(ctx,

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -22,10 +23,13 @@ var (
 // RegisterUser creates a new user account with the provided credentials.
 // Returns ErrEmailExists if email is already registered, ErrUsernameExists if username is taken.
 // The password is hashed using bcrypt before storage.
-func RegisterUser(db *sql.DB, username, email, password string) error {
+func RegisterUser(ctx context.Context, db *sql.DB, username, email, password string) error {
+	ctx, cancel := utils.DBContext(ctx)
+	defer cancel()
+
 	// Check if email exists
 	var exists bool
-	err := db.QueryRow("SELECT EXISTS (SELECT 1 FROM users WHERE email = $1)", email).Scan(&exists)
+	err := db.QueryRowContext(ctx, "SELECT EXISTS (SELECT 1 FROM users WHERE email = $1)", email).Scan(&exists)
 	if err != nil {
 		return fmt.Errorf("failed to check email existence: %w", err)
 	}
@@ -34,7 +38,7 @@ func RegisterUser(db *sql.DB, username, email, password string) error {
 	}
 
 	// Check if username exists
-	err = db.QueryRow("SELECT EXISTS (SELECT 1 FROM users WHERE username = $1)", username).Scan(&exists)
+	err = db.QueryRowContext(ctx, "SELECT EXISTS (SELECT 1 FROM users WHERE username = $1)", username).Scan(&exists)
 	if err != nil {
 		return fmt.Errorf("failed to check username existence: %w", err)
 	}
@@ -50,8 +54,6 @@ func RegisterUser(db *sql.DB, username, email, password string) error {
 
 	// Insert into users table
 	query := `INSERT INTO users (username, email, password) VALUES ($1, $2, $3)`
-	ctx, cancel := utils.DBContext()
-	defer cancel()
 	_, err = db.ExecContext(ctx, query, username, email, string(hashedPassword))
 	if err != nil {
 		return fmt.Errorf("error inserting user: %w", err)
@@ -63,11 +65,14 @@ func RegisterUser(db *sql.DB, username, email, password string) error {
 // LoginUser authenticates a user with email and password, returning a JWT token on success.
 // Returns ErrUserNotFound if the email doesn't exist, ErrInvalidCredentials if password is incorrect.
 // The JWT token expires after 72 hours and contains the user ID in its claims.
-func LoginUser(db *sql.DB, email, password, jwtSecret string) (string, error) {
+func LoginUser(ctx context.Context, db *sql.DB, email, password, jwtSecret string) (string, error) {
+	ctx, cancel := utils.DBContext(ctx)
+	defer cancel()
+
 	var userID int
 	var hashedPassword string
 
-	err := db.QueryRow("SELECT id, password FROM users WHERE email = $1", email).Scan(&userID, &hashedPassword)
+	err := db.QueryRowContext(ctx, "SELECT id, password FROM users WHERE email = $1", email).Scan(&userID, &hashedPassword)
 	if err == sql.ErrNoRows {
 		return "", ErrUserNotFound
 	}

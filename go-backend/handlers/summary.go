@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -11,8 +12,8 @@ import (
 
 // GetTotals calculates the total expenses and income for the specified user across all time.
 // Returns two float64 values: total expenses and total income.
-func GetTotals(db *sql.DB, userID int) (expenses float64, income float64, err error) {
-	ctx, cancel := utils.DBContext()
+func GetTotals(ctx context.Context, db *sql.DB, userID int) (expenses float64, income float64, err error) {
+	ctx, cancel := utils.DBContext(ctx)
 	defer cancel()
 
 	err = db.QueryRowContext(ctx,
@@ -30,8 +31,8 @@ func GetTotals(db *sql.DB, userID int) (expenses float64, income float64, err er
 
 // GetMonthlyTotals retrieves monthly aggregated income and expense totals for the user.
 // Returns data grouped by month in descending order (most recent first).
-func GetMonthlyTotals(db *sql.DB, userID int) ([]map[string]interface{}, error) {
-	ctx, cancel := utils.DBContext()
+func GetMonthlyTotals(ctx context.Context, db *sql.DB, userID int) ([]map[string]interface{}, error) {
+	ctx, cancel := utils.DBContext(ctx)
 	defer cancel()
 
 	rows, err := db.QueryContext(ctx,
@@ -74,7 +75,7 @@ func GetMonthlyTotals(db *sql.DB, userID int) ([]map[string]interface{}, error) 
 // GetCategoryBreakdown provides a breakdown of spending by category for the specified user.
 // Optionally filters by date range using 'from' and 'to' parameters (format: YYYY-MM-DD).
 // Returns data grouped by category and type, sorted by type and total amount.
-func GetCategoryBreakdown(db *sql.DB, userID int, from, to string) ([]map[string]interface{}, error) {
+func GetCategoryBreakdown(ctx context.Context, db *sql.DB, userID int, from, to string) ([]map[string]interface{}, error) {
 	base := `SELECT c.name, c.type, COALESCE(SUM(t.amount),0) AS total
 	 FROM transactions t
 	 JOIN categories c ON t.category_id = c.id
@@ -93,7 +94,7 @@ func GetCategoryBreakdown(db *sql.DB, userID int, from, to string) ([]map[string
 	}
 	base += " GROUP BY c.name, c.type ORDER BY c.type, total DESC"
 
-	ctx, cancel := utils.DBContext()
+	ctx, cancel := utils.DBContext(ctx)
 	defer cancel()
 
 	rows, err := db.QueryContext(ctx, base, params...)
@@ -128,7 +129,7 @@ func GetCategoryBreakdown(db *sql.DB, userID int, from, to string) ([]map[string
 // GetGroupTotals retrieves income and expense totals grouped by time period.
 // The granularity parameter must be 'month', 'week', or 'year'.
 // Returns data sorted by period in descending order (most recent first).
-func GetGroupTotals(db *sql.DB, userID int, granularity string) ([]map[string]interface{}, error) {
+func GetGroupTotals(ctx context.Context, db *sql.DB, userID int, granularity string) ([]map[string]interface{}, error) {
 	// Strict whitelist validation - explicitly reject invalid values
 	allowedGranularities := map[string]bool{
 		"month": true,
@@ -150,7 +151,7 @@ func GetGroupTotals(db *sql.DB, userID int, granularity string) ([]map[string]in
 		WHERE t.user_id = $1
 		GROUP BY period ORDER BY period DESC`, granularity)
 
-	ctx, cancel := utils.DBContext()
+	ctx, cancel := utils.DBContext(ctx)
 	defer cancel()
 
 	rows, err := db.QueryContext(ctx, sqlQuery, userID)
@@ -190,7 +191,7 @@ func GetGroupTotals(db *sql.DB, userID int, granularity string) ([]map[string]in
 
 // GetCategoryMonthSummary provides a category breakdown for a specific month.
 // Returns aggregated expenses and income grouped by category for the specified year and month.
-func GetCategoryMonthSummary(db *sql.DB, userID int, year, month int) ([]map[string]interface{}, error) {
+func GetCategoryMonthSummary(ctx context.Context, db *sql.DB, userID int, year, month int) ([]map[string]interface{}, error) {
 	query := `
 		SELECT c.name, c.type, COALESCE(SUM(t.amount),0)
 		FROM transactions t
@@ -199,7 +200,7 @@ func GetCategoryMonthSummary(db *sql.DB, userID int, year, month int) ([]map[str
 		GROUP BY c.name, c.type
 		ORDER BY c.type, SUM(t.amount) DESC`
 
-	ctx, cancel := utils.DBContext()
+	ctx, cancel := utils.DBContext(ctx)
 	defer cancel()
 
 	rows, err := db.QueryContext(ctx, query, userID, year, month)

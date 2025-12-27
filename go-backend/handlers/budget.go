@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"time"
@@ -11,7 +12,7 @@ import (
 )
 
 // AddBudget creates a new budget for a user
-func AddBudget(db *sql.DB, budget models.Budget) error {
+func AddBudget(ctx context.Context, db *sql.DB, budget models.Budget) error {
 	period := budget.Period
 	if period != "monthly" && period != "yearly" {
 		return fmt.Errorf("period must be monthly or yearly")
@@ -22,7 +23,7 @@ func AddBudget(db *sql.DB, budget models.Budget) error {
 		return fmt.Errorf("alert threshold must be between %d and %d", constants.MinAlertThreshold, constants.MaxAlertThreshold)
 	}
 
-	ctx, cancel := utils.DBContext()
+	ctx, cancel := utils.DBContext(ctx)
 	defer cancel()
 
 	_, err := db.ExecContext(ctx,
@@ -36,8 +37,8 @@ func AddBudget(db *sql.DB, budget models.Budget) error {
 }
 
 // ListBudgets retrieves all budgets for a user with current spending
-func ListBudgets(db *sql.DB, userID int) ([]models.Budget, error) {
-	ctx, cancel := utils.DBContext()
+func ListBudgets(ctx context.Context, db *sql.DB, userID int) ([]models.Budget, error) {
+	ctx, cancel := utils.DBContext(ctx)
 	defer cancel()
 
 	// Use UTC for all date calculations to avoid timezone issues
@@ -115,12 +116,12 @@ func ListBudgets(db *sql.DB, userID int) ([]models.Budget, error) {
 // UpdateBudget modifies an existing budget's amount and alert threshold.
 // Verifies that the budget belongs to the user before updating.
 // Returns an error if the budget doesn't exist or belongs to another user.
-func UpdateBudget(db *sql.DB, userID, budgetID int, amount float64, alertThreshold int) error {
+func UpdateBudget(ctx context.Context, db *sql.DB, userID, budgetID int, amount float64, alertThreshold int) error {
 	if alertThreshold < constants.MinAlertThreshold || alertThreshold > constants.MaxAlertThreshold {
 		return fmt.Errorf("alert threshold must be between %d and %d", constants.MinAlertThreshold, constants.MaxAlertThreshold)
 	}
 
-	ctx, cancel := utils.DBContext()
+	ctx, cancel := utils.DBContext(ctx)
 	defer cancel()
 
 	result, err := db.ExecContext(ctx,
@@ -138,8 +139,8 @@ func UpdateBudget(db *sql.DB, userID, budgetID int, amount float64, alertThresho
 
 // DeleteBudget removes a budget from the database.
 // Returns an error if the budget doesn't exist or belongs to another user.
-func DeleteBudget(db *sql.DB, budgetID, userID int) error {
-	ctx, cancel := utils.DBContext()
+func DeleteBudget(ctx context.Context, db *sql.DB, budgetID, userID int) error {
+	ctx, cancel := utils.DBContext(ctx)
 	defer cancel()
 
 	result, err := db.ExecContext(ctx,
@@ -155,8 +156,8 @@ func DeleteBudget(db *sql.DB, budgetID, userID int) error {
 
 // GetBudgetAlerts retrieves all budgets that have exceeded their alert threshold percentage.
 // Returns only budgets where current spending is at or above the configured alert level.
-func GetBudgetAlerts(db *sql.DB, userID int) ([]models.Budget, error) {
-	budgets, err := ListBudgets(db, userID)
+func GetBudgetAlerts(ctx context.Context, db *sql.DB, userID int) ([]models.Budget, error) {
+	budgets, err := ListBudgets(ctx, db, userID)
 	if err != nil {
 		return nil, err
 	}

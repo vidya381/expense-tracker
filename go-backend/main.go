@@ -237,7 +237,7 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := handlers.RegisterUser(db, username, email, password)
+	err := handlers.RegisterUser(r.Context(), db, username, email, password)
 	w.Header().Set("Content-Type", "application/json")
 
 	switch err {
@@ -287,7 +287,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := handlers.LoginUser(db, email, password, jwtSecret)
+	token, err := handlers.LoginUser(r.Context(), db, email, password, jwtSecret)
 	w.Header().Set("Content-Type", "application/json")
 
 	switch err {
@@ -358,7 +358,7 @@ func addCategoryHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	categoryID, err := handlers.AddCategory(db, userID, name, ctype)
+	categoryID, err := handlers.AddCategory(r.Context(), db, userID, name, ctype)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]interface{}{
@@ -405,7 +405,7 @@ func listCategoryHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cats, err := handlers.ListCategories(db, userID)
+	cats, err := handlers.ListCategories(r.Context(), db, userID)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(map[string]interface{}{
@@ -475,7 +475,7 @@ func addTransactionHandler(w http.ResponseWriter, r *http.Request) {
 		Date:        date,
 	}
 
-	err = handlers.AddTransaction(db, tx)
+	err = handlers.AddTransaction(r.Context(), db, tx)
 	if err != nil {
 		// Check if it's a category ownership error
 		if err.Error() == "category not found or unauthorized" {
@@ -510,7 +510,7 @@ func listTransactionHandler(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	list, err := handlers.ListTransactions(db, userID)
+	list, err := handlers.ListTransactions(r.Context(), db, userID)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(map[string]interface{}{
@@ -587,7 +587,7 @@ func updateTransactionHandler(w http.ResponseWriter, r *http.Request) {
 		Date:        date,
 	}
 
-	err = handlers.UpdateTransaction(db, tx)
+	err = handlers.UpdateTransaction(r.Context(), db, tx)
 	if err != nil {
 		if err.Error() == "category not found or unauthorized" {
 			utils.RespondWithValidationError(w, "Invalid category or you don't have permission to use this category")
@@ -632,7 +632,7 @@ func deleteTransactionHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = handlers.DeleteTransaction(db, id, userID)
+	err = handlers.DeleteTransaction(r.Context(), db, id, userID)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(map[string]interface{}{
@@ -656,7 +656,7 @@ func summaryTotalsHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
-	expenses, income, err := handlers.GetTotals(db, userID)
+	expenses, income, err := handlers.GetTotals(r.Context(), db, userID)
 	if err != nil {
 		http.Error(w, "Error: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -674,7 +674,7 @@ func summaryMonthlyHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
-	summary, err := handlers.GetMonthlyTotals(db, userID)
+	summary, err := handlers.GetMonthlyTotals(r.Context(), db, userID)
 	if err != nil {
 		http.Error(w, "Error: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -691,7 +691,7 @@ func summaryCategoryHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	from := r.URL.Query().Get("from")
 	to := r.URL.Query().Get("to")
-	result, err := handlers.GetCategoryBreakdown(db, userID, from, to)
+	result, err := handlers.GetCategoryBreakdown(r.Context(), db, userID, from, to)
 	if err != nil {
 		http.Error(w, "Error: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -707,7 +707,7 @@ func summaryGroupHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	granularity := r.URL.Query().Get("by")
-	summary, err := handlers.GetGroupTotals(db, userID, granularity)
+	summary, err := handlers.GetGroupTotals(r.Context(), db, userID, granularity)
 	if err != nil {
 		http.Error(w, "Error: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -728,7 +728,7 @@ func summaryCategoryMonthHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "year and month required", http.StatusBadRequest)
 		return
 	}
-	result, err := handlers.GetCategoryMonthSummary(db, userID, year, month)
+	result, err := handlers.GetCategoryMonthSummary(r.Context(), db, userID, year, month)
 	if err != nil {
 		http.Error(w, "Error: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -743,7 +743,7 @@ func exportTransactionsHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
-	transactions, err := handlers.ListTransactions(db, userID)
+	transactions, err := handlers.ListTransactions(r.Context(), db, userID)
 	if err != nil {
 		http.Error(w, "Failed to fetch transactions: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -844,7 +844,7 @@ func addRecurringHandler(w http.ResponseWriter, r *http.Request) {
 		Recurrence:  recurrence,
 	}
 
-	err = handlers.AddRecurringTransaction(db, rt)
+	err = handlers.AddRecurringTransaction(r.Context(), db, rt)
 	if err != nil {
 		if err.Error() == "category not found or unauthorized" {
 			utils.RespondWithValidationError(w, "Invalid category or you don't have permission to use this category")
@@ -864,7 +864,7 @@ func listRecurringHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
-	recurrings, err := handlers.ListRecurringTransactions(db, userID)
+	recurrings, err := handlers.ListRecurringTransactions(r.Context(), db, userID)
 	if err != nil {
 		http.Error(w, "Failed to list recurring transactions: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -896,7 +896,7 @@ func editRecurringHandler(w http.ResponseWriter, r *http.Request) {
 	startDate := r.FormValue("start_date")
 	recurrence := strings.ToLower(strings.TrimSpace(r.FormValue("recurrence")))
 
-	err = handlers.EditRecurringTransaction(db, userID, id, amount, description, startDate, recurrence)
+	err = handlers.EditRecurringTransaction(r.Context(), db, userID, id, amount, description, startDate, recurrence)
 	if err != nil {
 		http.Error(w, "Failed to edit recurring transaction: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -919,7 +919,7 @@ func deleteRecurringHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Valid id is required", http.StatusBadRequest)
 		return
 	}
-	err = handlers.DeleteRecurringTransaction(db, id, userID)
+	err = handlers.DeleteRecurringTransaction(r.Context(), db, id, userID)
 	if err != nil {
 		http.Error(w, "Failed to delete recurring transaction: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -983,7 +983,7 @@ func searchAndFilterTransactionsHandler(w http.ResponseWriter, r *http.Request) 
 	amountMax, _ := strconv.ParseFloat(r.URL.Query().Get("max_amount"), 64)
 
 	list, err := handlers.FilterTransactionsPaginated(
-		db, userID, keyword, categoryID, dateFrom, dateTo, amountMin, amountMax, orderBy, limit, offset,
+		r.Context(), db, userID, keyword, categoryID, dateFrom, dateTo, amountMin, amountMax, orderBy, limit, offset,
 	)
 	if err != nil {
 		utils.RespondWithInternalError(w, err, "Search transactions")
@@ -1068,7 +1068,7 @@ func addBudgetHandler(w http.ResponseWriter, r *http.Request) {
 		AlertThreshold: alertThreshold,
 	}
 
-	err = handlers.AddBudget(db, budget)
+	err = handlers.AddBudget(r.Context(), db, budget)
 	if err != nil {
 		if strings.Contains(err.Error(), "already exists") {
 			utils.RespondWithConflict(w, err.Error())
@@ -1093,7 +1093,7 @@ func listBudgetHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	budgets, err := handlers.ListBudgets(db, userID)
+	budgets, err := handlers.ListBudgets(r.Context(), db, userID)
 	if err != nil {
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
@@ -1159,7 +1159,7 @@ func updateBudgetHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = handlers.UpdateBudget(db, userID, budgetID, amount, alertThreshold)
+	err = handlers.UpdateBudget(r.Context(), db, userID, budgetID, amount, alertThreshold)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			utils.RespondWithNotFound(w, "Budget")
@@ -1200,7 +1200,7 @@ func deleteBudgetHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = handlers.DeleteBudget(db, budgetID, userID)
+	err = handlers.DeleteBudget(r.Context(), db, budgetID, userID)
 	if err != nil {
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
@@ -1227,7 +1227,7 @@ func budgetAlertsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	alerts, err := handlers.GetBudgetAlerts(db, userID)
+	alerts, err := handlers.GetBudgetAlerts(r.Context(), db, userID)
 	if err != nil {
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,

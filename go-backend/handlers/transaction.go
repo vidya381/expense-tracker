@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 
@@ -11,14 +12,14 @@ import (
 
 // AddTransaction creates a new expense or income transaction for the user.
 // Verifies that the specified category belongs to the user before creation.
-func AddTransaction(db *sql.DB, tx models.Transaction) error {
+func AddTransaction(ctx context.Context, db *sql.DB, tx models.Transaction) error {
+	ctx, cancel := utils.DBContext(ctx)
+	defer cancel()
+
 	// Verify category ownership
 	if err := utils.VerifyCategoryOwnership(db, tx.UserID, tx.CategoryID); err != nil {
 		return err
 	}
-
-	ctx, cancel := utils.DBContext()
-	defer cancel()
 
 	query := `INSERT INTO transactions (user_id, category_id, amount, description, date)
 			  VALUES ($1, $2, $3, $4, $5)`
@@ -32,8 +33,8 @@ func AddTransaction(db *sql.DB, tx models.Transaction) error {
 
 // ListTransactions retrieves all transactions for the specified user, including category details.
 // Returns transactions in descending order by date (newest first).
-func ListTransactions(db *sql.DB, userID int) ([]models.Transaction, error) {
-	ctx, cancel := utils.DBContext()
+func ListTransactions(ctx context.Context, db *sql.DB, userID int) ([]models.Transaction, error) {
+	ctx, cancel := utils.DBContext(ctx)
 	defer cancel()
 
 	rows, err := db.QueryContext(ctx,
@@ -88,14 +89,14 @@ func ListTransactions(db *sql.DB, userID int) ([]models.Transaction, error) {
 // UpdateTransaction modifies an existing transaction's amount, description, category, and date.
 // Verifies category ownership and that the transaction belongs to the user.
 // Returns an error if the transaction doesn't exist or belongs to another user.
-func UpdateTransaction(db *sql.DB, tx models.Transaction) error {
+func UpdateTransaction(ctx context.Context, db *sql.DB, tx models.Transaction) error {
+	ctx, cancel := utils.DBContext(ctx)
+	defer cancel()
+
 	// Verify category ownership
 	if err := utils.VerifyCategoryOwnership(db, tx.UserID, tx.CategoryID); err != nil {
 		return err
 	}
-
-	ctx, cancel := utils.DBContext()
-	defer cancel()
 
 	query := `UPDATE transactions
 			  SET amount = $1, description = $2, category_id = $3, date = $4
@@ -112,8 +113,8 @@ func UpdateTransaction(db *sql.DB, tx models.Transaction) error {
 
 // DeleteTransaction removes a transaction from the database.
 // Returns an error if the transaction doesn't exist or belongs to another user.
-func DeleteTransaction(db *sql.DB, id, userID int) error {
-	ctx, cancel := utils.DBContext()
+func DeleteTransaction(ctx context.Context, db *sql.DB, id, userID int) error {
+	ctx, cancel := utils.DBContext(ctx)
 	defer cancel()
 
 	result, err := db.ExecContext(ctx,
@@ -130,6 +131,7 @@ func DeleteTransaction(db *sql.DB, id, userID int) error {
 // Supports filtering by keyword (matches description or category name), category ID, date range, and amount range.
 // Results can be ordered by 'date' or 'amount' in ascending or descending order.
 func FilterTransactionsPaginated(
+	ctx context.Context,
 	db *sql.DB,
 	userID int,
 	keyword string,
@@ -214,7 +216,7 @@ func FilterTransactionsPaginated(
 	base += fmt.Sprintf(" LIMIT $%d OFFSET $%d", argpos, argpos+1)
 	args = append(args, limit, offset)
 
-	ctx, cancel := utils.DBContext()
+	ctx, cancel := utils.DBContext(ctx)
 	defer cancel()
 
 	rows, err := db.QueryContext(ctx, base, args...)
