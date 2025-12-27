@@ -7,6 +7,34 @@ import { useAuth } from '../../context/AuthContext';
 import { format, parseISO, subMonths } from 'date-fns';
 import TransactionForm from '../../components/TransactionForm';
 
+// Calendar date helpers - treat dates as pure calendar days without timezone conversion
+const MONTH_NAMES_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const MONTH_NAMES_LONG = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+function formatCalendarDate(dateStr: string, formatType: 'full' | 'month' | 'day' | 'monthYear'): string {
+    const [year, month, day] = dateStr.split('-').map(Number);
+
+    switch (formatType) {
+        case 'full':
+            return `${MONTH_NAMES_SHORT[month - 1]} ${day}, ${year}`;
+        case 'month':
+            return MONTH_NAMES_SHORT[month - 1];
+        case 'day':
+            return String(day).padStart(2, '0');
+        case 'monthYear':
+            return `${MONTH_NAMES_LONG[month - 1]} ${year}`;
+        default:
+            return dateStr;
+    }
+}
+
+// Format YYYY-MM to readable month/year
+function formatMonthYear(monthStr: string, short: boolean = false): string {
+    const [year, month] = monthStr.split('-').map(Number);
+    const monthName = short ? MONTH_NAMES_SHORT[month - 1] : MONTH_NAMES_LONG[month - 1];
+    return `${monthName} ${year}`;
+}
+
 interface SummaryData {
     total_expenses: number;
     total_income: number;
@@ -592,7 +620,7 @@ export default function Dashboard() {
                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
                         <div>
                             <h2 className="text-xl font-bold text-gray-900 mb-1">Spending Breakdown</h2>
-                            <p className="text-sm text-gray-600">{format(parseISO(selectedMonth + '-01'), 'MMMM yyyy')}</p>
+                            <p className="text-sm text-gray-600">{formatMonthYear(selectedMonth)}</p>
                         </div>
                         <div className="flex items-center space-x-2 bg-gray-50 rounded-xl p-1">
                             <button
@@ -605,7 +633,7 @@ export default function Dashboard() {
                                 </svg>
                             </button>
                             <span className="px-4 py-2 text-sm font-medium text-gray-700 min-w-[120px] text-center">
-                                {format(parseISO(selectedMonth + '-01'), 'MMM yyyy')}
+                                {formatMonthYear(selectedMonth, true)}
                             </span>
                             <button
                                 onClick={nextMonth}
@@ -913,10 +941,10 @@ export default function Dashboard() {
                                                     <div className="flex-shrink-0">
                                                         <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex flex-col items-center justify-center text-white shadow-sm">
                                                             <span className="text-[10px] font-semibold uppercase leading-none">
-                                                                {format(parseISO(tx.date), 'MMM')}
+                                                                {formatCalendarDate(tx.date, 'month')}
                                                             </span>
                                                             <span className="text-lg font-bold leading-none mt-0.5">
-                                                                {format(parseISO(tx.date), 'dd')}
+                                                                {formatCalendarDate(tx.date, 'day')}
                                                             </span>
                                                         </div>
                                                     </div>
@@ -933,7 +961,7 @@ export default function Dashboard() {
                                                                 {tx.category}
                                                             </span>
                                                             <span className="text-xs text-gray-500">
-                                                                {format(parseISO(tx.date), 'MMM dd, yyyy')}
+                                                                {formatCalendarDate(tx.date, 'full')}
                                                             </span>
                                                         </div>
                                                     </div>
@@ -976,7 +1004,7 @@ export default function Dashboard() {
                                                                     {tx.category}
                                                                 </span>
                                                                 <span className="text-xs text-gray-500">
-                                                                    {format(parseISO(tx.date), 'MMM dd, yyyy')}
+                                                                    {formatCalendarDate(tx.date, 'full')}
                                                                 </span>
                                                             </div>
                                                         </div>
@@ -1048,7 +1076,7 @@ export default function Dashboard() {
                                 </div>
                             </div>
                             <p className="text-xs text-gray-500">
-                                {format(parseISO(deleteConfirm.date), 'MMM dd, yyyy')}
+                                {formatCalendarDate(deleteConfirm.date, 'full')}
                             </p>
                         </div>
 

@@ -87,7 +87,7 @@ export default function EditTransactionPage() {
         if (typeof window !== 'undefined') {
             sessionStorage.setItem('refreshDashboard', 'true');
         }
-        router.push('/dashboard');
+        router.push('/dashboard', { scroll: false });
     }
 
     function handleCancel() {

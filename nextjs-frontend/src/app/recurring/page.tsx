@@ -6,6 +6,14 @@ import { useAuth } from '../../context/AuthContext';
 import { FiRepeat, FiEdit2, FiTrash2, FiPlus, FiArrowLeft, FiCalendar, FiX } from 'react-icons/fi';
 import { format, parseISO } from 'date-fns';
 
+// Calendar date helpers - treat dates as pure calendar days without timezone conversion
+const MONTH_NAMES_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+function formatCalendarDate(dateStr: string): string {
+    const [year, month, day] = dateStr.split('-').map(Number);
+    return `${MONTH_NAMES_SHORT[month - 1]} ${day}, ${year}`;
+}
+
 interface Category {
     id: number;
     name: string;
@@ -396,7 +404,7 @@ export default function RecurringTransactionsPage() {
                                     <div className="flex items-center justify-between pt-3 border-t border-gray-200">
                                         <div className="flex items-center gap-2 text-xs text-gray-600">
                                             <FiCalendar className="w-4 h-4" />
-                                            <span>Starts {format(parseISO(rec.start_date), 'MMM dd, yyyy')}</span>
+                                            <span>Starts {formatCalendarDate(rec.start_date)}</span>
                                         </div>
                                         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                             <button
