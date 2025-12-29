@@ -37,11 +37,8 @@ func main() {
 	// Initialize structured logger
 	utils.InitLogger()
 
-	// Load .env file
-	err := godotenv.Load()
-	if err != nil {
-		slog.Warn(".env file not found, using system environment variables")
-	}
+	// Load .env file (silently ignore if not found - normal in production)
+	_ = godotenv.Load()
 
 	// Validate all required environment variables
 	if err := utils.ValidateConfig(); err != nil {
