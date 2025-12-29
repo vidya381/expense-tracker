@@ -264,7 +264,7 @@ export default function RecurringTransactionsPage() {
         setCategoryId(rec.category_id);
         setAmount(String(rec.amount));
         setDescription(rec.description);
-        setStartDate(rec.start_date);
+        setStartDate(rec.start_date.split('T')[0]);
         setRecurrence(rec.recurrence as any);
         setShowModal(true);
     };
