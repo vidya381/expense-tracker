@@ -156,13 +156,21 @@ func main() {
 
 // Builds the PostgreSQL connection URL from environment variables for use with sql.Open
 func getDBConnURL() string {
+	// Default to require SSL for production safety (Supabase, Render, etc.)
+	// Can be overridden with DB_SSLMODE=disable for local development
+	sslMode := os.Getenv("DB_SSLMODE")
+	if sslMode == "" {
+		sslMode = "require"
+	}
+
 	return fmt.Sprintf(
-		"postgres://%s:%s@%s:%s/%s?sslmode=disable",
+		"postgres://%s:%s@%s:%s/%s?sslmode=%s",
 		os.Getenv("DB_USER"),
 		os.Getenv("DB_PASSWORD"),
 		os.Getenv("DB_HOST"),
 		os.Getenv("DB_PORT"),
 		os.Getenv("DB_NAME"),
+		sslMode,
 	)
 }
 
