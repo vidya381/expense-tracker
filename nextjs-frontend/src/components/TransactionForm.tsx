@@ -96,6 +96,9 @@ export default function TransactionForm({
     }, [token]);
 
     useEffect(() => {
+        if (!categories) {
+            return;
+        }
         if (!categoryInput) {
             setFilteredCategories(categories);
             setCategoryId(null);
