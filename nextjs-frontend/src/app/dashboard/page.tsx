@@ -37,6 +37,14 @@ function formatMonthYear(monthStr: string, short: boolean = false): string {
     return `${monthName} ${year}`;
 }
 
+// Decode HTML entities (e.g., &amp; -> &, &lt; -> <)
+function decodeHtmlEntities(text: string): string {
+    if (!text) return text;
+    const textarea = document.createElement('textarea');
+    textarea.innerHTML = text;
+    return textarea.value;
+}
+
 interface SummaryData {
     total_expenses: number;
     total_income: number;
@@ -1090,12 +1098,12 @@ export default function Dashboard() {
                                                     <div className="flex-1 min-w-0">
                                                         <div className="flex items-center gap-2 mb-1">
                                                             <h4 className="text-sm font-semibold text-gray-900 truncate">
-                                                                {tx.description || 'No description'}
+                                                                {tx.description ? decodeHtmlEntities(tx.description) : 'No description'}
                                                             </h4>
                                                         </div>
                                                         <div className="flex items-center gap-2">
                                                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-indigo-100 text-indigo-700">
-                                                                {tx.category}
+                                                                {decodeHtmlEntities(tx.category)}
                                                             </span>
                                                             <span className="text-xs text-gray-500">
                                                                 {formatCalendarDate(tx.date, 'full')}
@@ -1134,11 +1142,11 @@ export default function Dashboard() {
                                                     <div className="flex items-start justify-between gap-3 mb-2">
                                                         <div className="flex-1 min-w-0">
                                                             <h4 className="text-sm font-semibold text-gray-900 truncate mb-1">
-                                                                {tx.description || 'No description'}
+                                                                {tx.description ? decodeHtmlEntities(tx.description) : 'No description'}
                                                             </h4>
                                                             <div className="flex items-center gap-2 flex-wrap">
                                                                 <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-indigo-100 text-indigo-700">
-                                                                    {tx.category}
+                                                                    {decodeHtmlEntities(tx.category)}
                                                                 </span>
                                                                 <span className="text-xs text-gray-500">
                                                                     {formatCalendarDate(tx.date, 'full')}
@@ -1195,11 +1203,11 @@ export default function Dashboard() {
                                 <div className="flex-1">
                                     <div className="flex items-center gap-2 mb-2">
                                         <span className="text-xs font-semibold px-2 py-1 rounded-full bg-gray-200 text-gray-700">
-                                            {deleteConfirm.category}
+                                            {decodeHtmlEntities(deleteConfirm.category)}
                                         </span>
                                     </div>
                                     <p className="text-sm text-gray-600">
-                                        {deleteConfirm.description || 'No description'}
+                                        {deleteConfirm.description ? decodeHtmlEntities(deleteConfirm.description) : 'No description'}
                                     </p>
                                 </div>
                                 <div className="text-right">

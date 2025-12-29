@@ -2,6 +2,13 @@
 
 import React, { useState, useEffect, useRef, Dispatch, SetStateAction } from 'react';
 
+// Decode HTML entities (e.g., &amp; -> &, &lt; -> <)
+function decodeHtmlEntities(text: string): string {
+    if (!text) return text;
+    const textarea = document.createElement('textarea');
+    textarea.innerHTML = text;
+    return textarea.value;
+}
 
 interface Category {
     id: number;
@@ -37,7 +44,7 @@ export default function TransactionForm({
     const [filteredCategories, setFilteredCategories] = useState<Category[]>([]);
 
     const [categoryInput, setCategoryInput] = useState(
-        initialValues.category_name || ''
+        initialValues.category_name ? decodeHtmlEntities(initialValues.category_name) : ''
     );
     const [categoryId, setCategoryId] = useState<number | null>(
         initialValues.category_id || null
@@ -48,7 +55,9 @@ export default function TransactionForm({
     const [amount, setAmount] = useState(
         initialValues.amount !== undefined ? initialValues.amount.toString() : ''
     );
-    const [description, setDescription] = useState(initialValues.description || '');
+    const [description, setDescription] = useState(
+        initialValues.description ? decodeHtmlEntities(initialValues.description) : ''
+    );
     const [date, setDate] = useState(
         initialValues.date
             ? initialValues.date.split('T')[0]  // Extract date part from ISO timestamp
