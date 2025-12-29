@@ -106,11 +106,16 @@ export default function Dashboard() {
     const [deleteConfirm, setDeleteConfirm] = useState<Transaction | null>(null);
     const [deleting, setDeleting] = useState(false);
     const [highlightedTransactionId, setHighlightedTransactionId] = useState<number | null>(null);
+    const [showUpdatedBadge, setShowUpdatedBadge] = useState(false);
 
     // Budget state
     const [budgets, setBudgets] = useState<Budget[]>([]);
     const [budgetAlerts, setBudgetAlerts] = useState<Budget[]>([]);
     const [showToast, setShowToast] = useState(false);
+
+    // Transaction update toast
+    const [showUpdateToast, setShowUpdateToast] = useState(false);
+    const [updateToastMessage, setUpdateToastMessage] = useState('');
 
     // Transaction modal state
     const [showTransactionModal, setShowTransactionModal] = useState(false);
@@ -155,9 +160,8 @@ export default function Dashboard() {
             }
         }
 
-        // Save scroll position before leaving page (e.g., navigating to edit)
+        // Save scroll position before leaving page
         function handleBeforeUnload() {
-            // Save both scroll positions
             sessionStorage.setItem('dashboardScrollPosition', window.scrollY.toString());
             if (scrollContainerRef.current) {
                 sessionStorage.setItem('transactionHistoryScrollPosition', scrollContainerRef.current.scrollTop.toString());
@@ -348,13 +352,10 @@ export default function Dashboard() {
         const editedTransactionId = sessionStorage.getItem('editedTransactionId');
         const originalDate = sessionStorage.getItem('originalTransactionDate');
 
-        console.log('Restore effect triggered. dashboardScroll:', savedDashboardScroll, 'transactionScroll:', savedTransactionScroll, 'editedId:', editedTransactionId, 'loading:', loading);
-
         requestAnimationFrame(() => {
             requestAnimationFrame(() => {
                 // Always restore main dashboard scroll
                 if (savedDashboardScroll) {
-                    console.log('Restoring window scroll to:', savedDashboardScroll);
                     window.scrollTo(0, parseInt(savedDashboardScroll, 10));
                     sessionStorage.removeItem('dashboardScrollPosition');
                 }
@@ -365,32 +366,58 @@ export default function Dashboard() {
                     const editedTransaction = transactions.find(tx => tx.id === editedId);
 
                     if (editedTransaction) {
-                        // Check if date changed
                         const dateChanged = editedTransaction.date !== originalDate;
-                        console.log('Date changed:', dateChanged, 'from', originalDate, 'to', editedTransaction.date);
 
                         if (dateChanged) {
-                            // Date changed - scroll to edited transaction and highlight it
+                            // Calculate date difference in days
+                            const oldDate = new Date(originalDate);
+                            const newDate = new Date(editedTransaction.date);
+                            const diffTime = Math.abs(newDate.getTime() - oldDate.getTime());
+                            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                            // Date changed - smooth scroll to center on edited transaction
                             const transactionElement = scrollContainerRef.current?.querySelector(
                                 `[data-transaction-id="${editedId}"]`
                             ) as HTMLElement;
 
                             if (transactionElement && scrollContainerRef.current) {
-                                console.log('Scrolling to edited transaction with changed date');
-                                // Scroll transaction into view within its container
-                                const containerTop = scrollContainerRef.current.offsetTop;
+                                // Calculate position to center the transaction in container
+                                const containerHeight = scrollContainerRef.current.clientHeight;
                                 const elementTop = transactionElement.offsetTop;
-                                const scrollPosition = elementTop - 100; // 100px offset from top
+                                const elementHeight = transactionElement.clientHeight;
+                                const scrollPosition = elementTop - (containerHeight / 2) + (elementHeight / 2);
 
-                                scrollContainerRef.current.scrollTop = scrollPosition;
+                                // Smooth scroll animation
+                                scrollContainerRef.current.scrollTo({
+                                    top: Math.max(0, scrollPosition),
+                                    behavior: 'smooth'
+                                });
 
-                                // Highlight the transaction
+                                // Show highlight with gradient fade
                                 setHighlightedTransactionId(editedId);
+
+                                // Show updated badge
+                                setShowUpdatedBadge(true);
+                                setTimeout(() => setShowUpdatedBadge(false), 2000);
+
+                                // Remove highlight after fade completes
                                 setTimeout(() => setHighlightedTransactionId(null), 3000);
+
+                                // Show toast for significant date changes (7+ days)
+                                if (diffDays >= 7) {
+                                    const direction = newDate > oldDate ? 'forward' : 'back';
+                                    const oldDateFormatted = formatCalendarDate(originalDate, 'full');
+                                    const newDateFormatted = formatCalendarDate(editedTransaction.date, 'full');
+
+                                    setUpdateToastMessage(
+                                        `Transaction moved from ${oldDateFormatted} to ${newDateFormatted}`
+                                    );
+                                    setShowUpdateToast(true);
+                                    setTimeout(() => setShowUpdateToast(false), 5000);
+                                }
                             }
                         } else {
                             // Date unchanged - restore scroll position
-                            console.log('Date unchanged - restoring scroll position');
                             if (savedTransactionScroll && scrollContainerRef.current) {
                                 scrollContainerRef.current.scrollTop = parseInt(savedTransactionScroll, 10);
                             }
@@ -403,12 +430,9 @@ export default function Dashboard() {
                     sessionStorage.removeItem('transactionHistoryScrollPosition');
                 } else if (savedTransactionScroll && scrollContainerRef.current) {
                     // No edit tracked - restore scroll position normally
-                    console.log('No edit tracked - restoring transaction history scroll to:', savedTransactionScroll);
                     scrollContainerRef.current.scrollTop = parseInt(savedTransactionScroll, 10);
                     sessionStorage.removeItem('transactionHistoryScrollPosition');
                 }
-
-                console.log('Smart scroll restoration complete');
             });
         });
     }, [transactions, loading]);
@@ -1022,12 +1046,21 @@ export default function Dashboard() {
                                                 key={`${tx.id}-${index}-${tx.date}`}
                                                 data-transaction-date={tx.date}
                                                 data-transaction-id={tx.id}
-                                                className={`group transition-all duration-500 px-3 sm:px-4 py-3 ${
+                                                className={`group relative px-3 sm:px-4 py-3 transition-all duration-1000 ease-in-out ${
                                                     highlightedTransactionId === tx.id
-                                                        ? 'bg-yellow-200 border-l-4 border-yellow-500'
+                                                        ? 'bg-gradient-to-r from-yellow-200 via-yellow-100 to-yellow-50 border-l-4 border-yellow-500'
                                                         : 'bg-white hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50'
                                                 }`}
                                             >
+                                                {/* Updated Checkmark on Border */}
+                                                {highlightedTransactionId === tx.id && showUpdatedBadge && (
+                                                    <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-6 h-6 bg-white rounded-full shadow-lg flex items-center justify-center animate-in fade-in zoom-in duration-300">
+                                                        <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                                                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                                        </svg>
+                                                    </div>
+                                                )}
+
                                                 {/* Desktop Layout */}
                                                 <div className="hidden sm:flex items-center gap-3">
                                                     {/* Compact Date Badge */}
@@ -1220,9 +1253,37 @@ export default function Dashboard() {
                 <FiPlus size={28} />
             </button>
 
+            {/* Toast Notification for Transaction Updates */}
+            {showUpdateToast && (
+                <div className="fixed top-16 left-4 right-4 sm:top-20 sm:left-auto sm:right-6 max-w-md bg-white rounded-2xl shadow-2xl border-2 border-green-200 p-4 z-50 animate-fade-in">
+                    <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0 p-2 bg-green-100 rounded-full">
+                            <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between mb-1">
+                                <h4 className="text-sm font-bold text-gray-900">Transaction Updated</h4>
+                                <button
+                                    onClick={() => setShowUpdateToast(false)}
+                                    className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+                                    aria-label="Close notification"
+                                >
+                                    <FiX className="w-4 h-4 text-gray-500" />
+                                </button>
+                            </div>
+                            <p className="text-sm text-gray-700">
+                                {updateToastMessage}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Toast Notification for Budget Alerts */}
             {showToast && budgetAlerts.length > 0 && (
-                <div className="fixed top-16 left-4 right-4 sm:top-20 sm:left-auto sm:right-6 max-w-md bg-white rounded-2xl shadow-2xl border-2 border-red-200 p-4 z-50 animate-fade-in">
+                <div className="fixed top-28 left-4 right-4 sm:top-32 sm:left-auto sm:right-6 max-w-md bg-white rounded-2xl shadow-2xl border-2 border-red-200 p-4 z-50 animate-fade-in">
                     <div className="flex items-start gap-3">
                         <div className="flex-shrink-0 p-2 bg-red-100 rounded-full">
                             <FiBell className="w-5 h-5 text-red-600" />
@@ -1301,14 +1362,10 @@ export default function Dashboard() {
                                         }
 
                                         // Save both scroll positions before refreshing
-                                        const dashboardScrollPos = window.scrollY;
-                                        console.log('Saving window scroll position:', dashboardScrollPos);
-                                        sessionStorage.setItem('dashboardScrollPosition', dashboardScrollPos.toString());
+                                        sessionStorage.setItem('dashboardScrollPosition', window.scrollY.toString());
 
                                         if (scrollContainerRef.current) {
-                                            const transactionScrollPos = scrollContainerRef.current.scrollTop;
-                                            console.log('Saving transaction history scroll position:', transactionScrollPos);
-                                            sessionStorage.setItem('transactionHistoryScrollPosition', transactionScrollPos.toString());
+                                            sessionStorage.setItem('transactionHistoryScrollPosition', scrollContainerRef.current.scrollTop.toString());
                                         }
 
                                         setShowTransactionModal(false);
