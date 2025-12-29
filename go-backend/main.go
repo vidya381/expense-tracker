@@ -50,6 +50,7 @@ func main() {
 	jwtSecret = os.Getenv("JWT_SECRET")
 
 	// Connect to database
+	var err error
 	db, err = sql.Open("pgx", getDBConnURL())
 	if err != nil {
 		panic(err)
