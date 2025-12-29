@@ -108,6 +108,9 @@ export default function RecurringTransactionsPage() {
 
     // Category filtering
     useEffect(() => {
+        if (!categories) {
+            return;
+        }
         if (!categoryInput) {
             setFilteredCategories(categories);
             setCategoryId(null);
