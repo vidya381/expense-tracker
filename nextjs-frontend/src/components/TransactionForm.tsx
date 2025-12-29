@@ -96,7 +96,14 @@ export default function TransactionForm({
     }, [token]);
 
     useEffect(() => {
-        if (!categories) {
+        if (!categories || categories.length === 0) {
+            // If no categories exist yet, and user is typing, show type input
+            if (categoryInput) {
+                setFilteredCategories([]);
+                setCategoryId(null);
+                setShowCategoryTypeInput(true);
+                setShowDropdown(false);
+            }
             return;
         }
         if (!categoryInput) {
