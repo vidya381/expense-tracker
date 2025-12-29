@@ -6,20 +6,30 @@
 
 Required environment variables for the Go backend:
 
+**Option 1 (Recommended):** Use DATABASE_URL - simpler and standard for Render
 ```bash
-# Database Configuration (from Supabase)
-DB_HOST=db.example.supabase.co
-DB_PORT=6543  # Use 6543 for connection pooling, 5432 for direct connection
-DB_USER=postgres
-DB_PASSWORD=your_supabase_password
-DB_NAME=postgres
-DB_SSLMODE=require  # IMPORTANT: Must be 'require' for Supabase
+# Database Configuration - Single connection string from Supabase
+# Copy the "Connection Pooling" URI from Supabase (includes sslmode=require)
+DATABASE_URL=postgresql://postgres.projectref:password@db.example.supabase.co:6543/postgres?sslmode=require
 
 # JWT Secret (generate a new one for production)
 JWT_SECRET=generate_with_openssl_rand_hex_32
 
 # CORS Configuration
 CORS_ORIGIN=https://your-app.vercel.app  # Your Vercel frontend URL
+```
+
+**Option 2:** Individual variables (for manual configuration)
+```bash
+DB_HOST=db.example.supabase.co
+DB_PORT=6543  # Use 6543 for connection pooling, 5432 for direct connection
+DB_USER=postgres.projectref  # IMPORTANT: Include the project reference (postgres.abcdefgh)
+DB_PASSWORD=your_supabase_password
+DB_NAME=postgres
+DB_SSLMODE=require
+
+JWT_SECRET=generate_with_openssl_rand_hex_32
+CORS_ORIGIN=https://your-app.vercel.app
 ```
 
 **Generate JWT Secret:**

@@ -155,7 +155,16 @@ func main() {
 }
 
 // Builds the PostgreSQL connection URL from environment variables for use with sql.Open
+// Supports two formats:
+// 1. DATABASE_URL - single connection string (preferred for Render, Heroku, etc.)
+// 2. Individual variables (DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME, DB_SSLMODE)
 func getDBConnURL() string {
+	// Check if DATABASE_URL is provided (standard format for cloud platforms)
+	if dbURL := os.Getenv("DATABASE_URL"); dbURL != "" {
+		return dbURL
+	}
+
+	// Fallback to individual environment variables for local development
 	// Default to require SSL for production safety (Supabase, Render, etc.)
 	// Can be overridden with DB_SSLMODE=disable for local development
 	sslMode := os.Getenv("DB_SSLMODE")

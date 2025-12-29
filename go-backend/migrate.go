@@ -83,6 +83,12 @@ func main() {
 }
 
 func getDBConnURL() string {
+	// Check if DATABASE_URL is provided (standard format for cloud platforms)
+	if dbURL := os.Getenv("DATABASE_URL"); dbURL != "" {
+		return dbURL
+	}
+
+	// Fallback to individual environment variables for local development
 	host := os.Getenv("DB_HOST")
 	port := os.Getenv("DB_PORT")
 	user := os.Getenv("DB_USER")
