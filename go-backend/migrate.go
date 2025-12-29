@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strings"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/joho/godotenv"
@@ -43,23 +44,42 @@ func main() {
 
 	slog.Info("Connected to PostgreSQL successfully")
 
-	// Read and execute migration file
-	migrationFile := "migrations/001_create_budgets_table.sql"
-	sqlBytes, err := os.ReadFile(migrationFile)
+	// Read all migration files from the migrations directory
+	migrationDir := "migrations"
+	entries, err := os.ReadDir(migrationDir)
 	if err != nil {
-		slog.Error("Failed to read migration file", "file", migrationFile, "error", err)
+		slog.Error("Failed to read migrations directory", "error", err)
 		os.Exit(1)
 	}
 
-	sqlStatement := string(sqlBytes)
-	_, err = db.Exec(sqlStatement)
-	if err != nil {
-		slog.Error("Failed to execute migration", "error", err)
-		os.Exit(1)
+	// Execute each migration file in order (sorted by filename)
+	migrationCount := 0
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".sql") {
+			continue
+		}
+
+		migrationFile := fmt.Sprintf("%s/%s", migrationDir, entry.Name())
+		slog.Info("Applying migration", "file", entry.Name())
+
+		sqlBytes, err := os.ReadFile(migrationFile)
+		if err != nil {
+			slog.Error("Failed to read migration file", "file", migrationFile, "error", err)
+			os.Exit(1)
+		}
+
+		sqlStatement := string(sqlBytes)
+		_, err = db.Exec(sqlStatement)
+		if err != nil {
+			slog.Error("Failed to execute migration", "file", entry.Name(), "error", err)
+			os.Exit(1)
+		}
+
+		slog.Info("Migration applied successfully", "file", entry.Name())
+		migrationCount++
 	}
 
-	slog.Info("Migration applied successfully")
-	slog.Info("Budgets table created")
+	slog.Info("All migrations completed", "count", migrationCount)
 }
 
 func getDBConnURL() string {
