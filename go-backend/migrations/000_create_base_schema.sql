@@ -44,11 +44,11 @@ CREATE TABLE IF NOT EXISTS recurring_transactions (
 );
 
 -- Create indexes for better query performance
-CREATE INDEX idx_users_username ON users(username);
-CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_categories_user_id ON categories(user_id);
-CREATE INDEX idx_transactions_user_id ON transactions(user_id);
-CREATE INDEX idx_transactions_category_id ON transactions(category_id);
-CREATE INDEX idx_transactions_date ON transactions(date);
-CREATE INDEX idx_recurring_user_id ON recurring_transactions(user_id);
-CREATE INDEX idx_recurring_category_id ON recurring_transactions(category_id);
+CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_categories_user_id ON categories(user_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_user_id ON transactions(user_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_category_id ON transactions(category_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date);
+CREATE INDEX IF NOT EXISTS idx_recurring_user_id ON recurring_transactions(user_id);
+CREATE INDEX IF NOT EXISTS idx_recurring_category_id ON recurring_transactions(category_id);

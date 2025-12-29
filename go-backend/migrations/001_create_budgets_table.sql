@@ -13,8 +13,8 @@ CREATE TABLE IF NOT EXISTS budgets (
 );
 
 -- Create index for faster queries
-CREATE INDEX idx_budgets_user_id ON budgets(user_id);
-CREATE INDEX idx_budgets_category_id ON budgets(category_id);
+CREATE INDEX IF NOT EXISTS idx_budgets_user_id ON budgets(user_id);
+CREATE INDEX IF NOT EXISTS idx_budgets_category_id ON budgets(category_id);
 
 -- Note: We don't add a foreign key constraint for category_id because:
 -- - When category_id = 0, it represents an "overall budget" (not a specific category)
