@@ -23,7 +23,9 @@ type SuccessResponse struct {
 func RespondWithError(w http.ResponseWriter, code int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
-	json.NewEncoder(w).Encode(ErrorResponse{
+	encoder := json.NewEncoder(w)
+	encoder.SetEscapeHTML(false)
+	encoder.Encode(ErrorResponse{
 		Success: false,
 		Error:   message,
 	})
@@ -40,14 +42,18 @@ func RespondWithSuccess(w http.ResponseWriter, code int, message string, data in
 	if data != nil {
 		response.Data = data
 	}
-	json.NewEncoder(w).Encode(response)
+	encoder := json.NewEncoder(w)
+	encoder.SetEscapeHTML(false)
+	encoder.Encode(response)
 }
 
 // RespondWithJSON sends a JSON response with custom structure
 func RespondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
-	json.NewEncoder(w).Encode(payload)
+	encoder := json.NewEncoder(w)
+	encoder.SetEscapeHTML(false)
+	encoder.Encode(payload)
 }
 
 // RespondWithInternalError logs the error and sends a generic error response
