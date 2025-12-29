@@ -417,10 +417,21 @@ export default function Dashboard() {
                                 }
                             }
                         } else {
-                            // Date unchanged - restore scroll position
+                            // Date unchanged - show brief highlight without scrolling
+                            // Restore scroll position first
                             if (savedTransactionScroll && scrollContainerRef.current) {
                                 scrollContainerRef.current.scrollTop = parseInt(savedTransactionScroll, 10);
                             }
+
+                            // Show brief highlight and tick mark in place
+                            setHighlightedTransactionId(editedId);
+
+                            // Show updated badge
+                            setShowUpdatedBadge(true);
+                            setTimeout(() => setShowUpdatedBadge(false), 2000);
+
+                            // Remove highlight after shorter duration (1.5s instead of 3s)
+                            setTimeout(() => setHighlightedTransactionId(null), 1500);
                         }
                     }
 
