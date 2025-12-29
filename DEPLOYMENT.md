@@ -9,8 +9,8 @@ Required environment variables for the Go backend:
 **Option 1 (Recommended):** Use DATABASE_URL - simpler and standard for Render
 ```bash
 # Database Configuration - Single connection string from Supabase
-# Copy the "Connection Pooling" URI from Supabase (includes sslmode=require)
-DATABASE_URL=postgresql://postgres.projectref:password@db.example.supabase.co:6543/postgres?sslmode=require
+# IMPORTANT: Add prefer_simple_protocol=true to avoid prepared statement errors with connection pooling
+DATABASE_URL=postgresql://postgres.projectref:password@db.example.supabase.co:6543/postgres?sslmode=require&prefer_simple_protocol=true
 
 # JWT Secret (generate a new one for production)
 JWT_SECRET=generate_with_openssl_rand_hex_32
