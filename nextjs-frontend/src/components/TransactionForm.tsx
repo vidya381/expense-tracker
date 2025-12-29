@@ -215,7 +215,7 @@ export default function TransactionForm({
 
                 // Update local categories state
                 // setCategories(prev => [...prev, createdCategory]);
-                setCategories(prev => [...prev, data.category]);
+                setCategories(prev => prev ? [...prev, data.category] : [data.category]);
 
 
             }
