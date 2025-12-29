@@ -38,11 +38,11 @@ function formatMonthYear(monthStr: string, short: boolean = false): string {
 }
 
 // Decode HTML entities (e.g., &amp; -> &, &lt; -> <)
+// Uses DOMParser for safe HTML entity decoding without XSS risk
 function decodeHtmlEntities(text: string): string {
     if (!text) return text;
-    const textarea = document.createElement('textarea');
-    textarea.innerHTML = text;
-    return textarea.value;
+    const doc = new DOMParser().parseFromString(text, 'text/html');
+    return doc.documentElement.textContent || text;
 }
 
 interface SummaryData {
