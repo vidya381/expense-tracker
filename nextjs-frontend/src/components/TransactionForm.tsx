@@ -50,7 +50,9 @@ export default function TransactionForm({
     );
     const [description, setDescription] = useState(initialValues.description || '');
     const [date, setDate] = useState(
-        initialValues.date || new Date().toISOString().slice(0, 10)
+        initialValues.date
+            ? initialValues.date.split('T')[0]  // Extract date part from ISO timestamp
+            : new Date().toISOString().slice(0, 10)
     );
 
     const [loadingCategories, setLoadingCategories] = useState(false);
