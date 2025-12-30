@@ -117,6 +117,11 @@ export default function Dashboard() {
     const [activeCardIndex, setActiveCardIndex] = useState(0);
     const [touchStartX, setTouchStartX] = useState<number | null>(null);
     const [touchEndX, setTouchEndX] = useState<number | null>(null);
+
+    // Historical modal state
+    const [showHistoricalModal, setShowHistoricalModal] = useState(false);
+    const [historicalType, setHistoricalType] = useState<'expenses' | 'income' | 'recurring'>('expenses');
+    const [monthlyHistory, setMonthlyHistory] = useState<Array<{month: string; expenses: number; income: number; recurring: number}>>([]);
     const [deleting, setDeleting] = useState(false);
     const [highlightedTransactionId, setHighlightedTransactionId] = useState<number | null>(null);
     const [showUpdatedBadge, setShowUpdatedBadge] = useState(false);
@@ -212,6 +217,43 @@ export default function Dashboard() {
                     total_income: summaryJson.monthly_income || 0,
                     recurring_expenses: summaryJson.monthly_recurring || 0
                 });
+
+                // 2. Fetch monthly history for trend lines
+                const historyRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/summary/monthly`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                if (historyRes.ok) {
+                    const historyData = await historyRes.json();
+                    // Get last 6 months and calculate recurring for each
+                    const last6Months = (historyData || []).slice(0, 6);
+
+                    // Fetch recurring list to calculate monthly recurring for each month
+                    const recurringRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/recurring/list`, {
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+                    const recurringList: any[] = recurringRes.ok ? await recurringRes.json() : [];
+
+                    // Calculate normalized recurring (assume it's constant for now)
+                    const normalizedRecurring = (Array.isArray(recurringList) ? recurringList : []).reduce((acc, item) => {
+                        if (item && item.recurrence && item.amount && item.amount > 0) {
+                            switch (item.recurrence) {
+                                case 'daily': acc += item.amount * 30; break;
+                                case 'weekly': acc += item.amount * 4; break;
+                                case 'monthly': acc += item.amount; break;
+                                case 'yearly': acc += item.amount / 12; break;
+                            }
+                        }
+                        return acc;
+                    }, 0);
+
+                    const history = last6Months.map((m: any) => ({
+                        month: m.month,
+                        expenses: m.total_expenses || 0,
+                        income: m.total_income || 0,
+                        recurring: normalizedRecurring
+                    }));
+                    setMonthlyHistory(history);
+                }
 
                 // 3. Spending breakdown by category for month
                 const spendingRes = await fetch(
@@ -533,6 +575,42 @@ export default function Dashboard() {
         }
     };
 
+    // Handler to open historical modal
+    const openHistoricalModal = (type: 'expenses' | 'income' | 'recurring') => {
+        setHistoricalType(type);
+        setShowHistoricalModal(true);
+    };
+
+    // Mini sparkline component
+    const MiniSparkline = ({ data, color }: { data: number[]; color: string }) => {
+        if (data.length < 2) return null;
+
+        const max = Math.max(...data);
+        const min = Math.min(...data);
+        const range = max - min || 1;
+        const width = 60;
+        const height = 20;
+
+        const points = data.map((value, index) => {
+            const x = (index / (data.length - 1)) * width;
+            const y = height - ((value - min) / range) * height;
+            return `${x},${y}`;
+        }).join(' ');
+
+        return (
+            <svg width={width} height={height} className="opacity-60">
+                <polyline
+                    points={points}
+                    fill="none"
+                    stroke={color}
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                />
+            </svg>
+        );
+    };
+
     // Swipe handlers for summary cards
     const handleTouchStartCard = (e: React.TouchEvent) => {
         setTouchStartX(e.touches[0].clientX);
@@ -750,6 +828,9 @@ export default function Dashboard() {
                             value={formatCurrency(summary?.total_expenses || 0)}
                             gradient="from-red-500 to-pink-500"
                             bgGradient="from-red-50 to-pink-50"
+                            onClick={() => openHistoricalModal('expenses')}
+                            sparklineData={monthlyHistory.map(m => m.expenses).reverse()}
+                            sparklineColor="#ef4444"
                         />
                         <Card
                             icon={<FiDollarSign size={32} />}
@@ -757,6 +838,9 @@ export default function Dashboard() {
                             value={formatCurrency(summary?.total_income || 0)}
                             gradient="from-green-500 to-emerald-500"
                             bgGradient="from-green-50 to-emerald-50"
+                            onClick={() => openHistoricalModal('income')}
+                            sparklineData={monthlyHistory.map(m => m.income).reverse()}
+                            sparklineColor="#10b981"
                         />
                         <Card
                             icon={<FiRepeat size={32} />}
@@ -764,6 +848,9 @@ export default function Dashboard() {
                             value={formatCurrency(summary?.recurring_expenses || 0)}
                             gradient="from-orange-500 to-amber-500"
                             bgGradient="from-orange-50 to-amber-50"
+                            onClick={() => openHistoricalModal('recurring')}
+                            sparklineData={monthlyHistory.map(m => m.recurring).reverse()}
+                            sparklineColor="#f59e0b"
                         />
                     </div>
 
@@ -786,6 +873,9 @@ export default function Dashboard() {
                                         value={formatCurrency(summary?.total_expenses || 0)}
                                         gradient="from-red-500 to-pink-500"
                                         bgGradient="from-red-50 to-pink-50"
+                                        onClick={() => openHistoricalModal('expenses')}
+                                        sparklineData={monthlyHistory.map(m => m.expenses).reverse()}
+                                        sparklineColor="#ef4444"
                                     />
                                 </div>
                                 <div className="w-full flex-shrink-0 px-1">
@@ -795,6 +885,9 @@ export default function Dashboard() {
                                         value={formatCurrency(summary?.total_income || 0)}
                                         gradient="from-green-500 to-emerald-500"
                                         bgGradient="from-green-50 to-emerald-50"
+                                        onClick={() => openHistoricalModal('income')}
+                                        sparklineData={monthlyHistory.map(m => m.income).reverse()}
+                                        sparklineColor="#10b981"
                                     />
                                 </div>
                                 <div className="w-full flex-shrink-0 px-1">
@@ -804,6 +897,9 @@ export default function Dashboard() {
                                         value={formatCurrency(summary?.recurring_expenses || 0)}
                                         gradient="from-orange-500 to-amber-500"
                                         bgGradient="from-orange-50 to-amber-50"
+                                        onClick={() => openHistoricalModal('recurring')}
+                                        sparklineData={monthlyHistory.map(m => m.recurring).reverse()}
+                                        sparklineColor="#f59e0b"
                                     />
                                 </div>
                             </div>
@@ -1278,6 +1374,94 @@ export default function Dashboard() {
             </div>
 
             {/* Delete Confirmation Modal */}
+            {/* Historical Modal */}
+            {showHistoricalModal && monthlyHistory.length > 0 && (
+                <div
+                    className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center"
+                    onClick={() => setShowHistoricalModal(false)}
+                >
+                    <div
+                        className="bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl w-full sm:max-w-2xl max-h-[80vh] overflow-y-auto"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="p-6">
+                            {/* Header */}
+                            <div className="flex items-center justify-between mb-6">
+                                <h3 className="text-xl font-bold text-gray-900">
+                                    {historicalType === 'expenses' && 'Expenses History'}
+                                    {historicalType === 'income' && 'Income History'}
+                                    {historicalType === 'recurring' && 'Recurring History'}
+                                </h3>
+                                <button
+                                    onClick={() => setShowHistoricalModal(false)}
+                                    className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                                >
+                                    <FiX className="w-5 h-5 text-gray-500" />
+                                </button>
+                            </div>
+
+                            {/* Monthly List */}
+                            <div className="space-y-3">
+                                {monthlyHistory.map((month, index) => {
+                                    const value = historicalType === 'expenses' ? month.expenses
+                                        : historicalType === 'income' ? month.income
+                                        : month.recurring;
+
+                                    const prevValue = index < monthlyHistory.length - 1
+                                        ? (historicalType === 'expenses' ? monthlyHistory[index + 1].expenses
+                                            : historicalType === 'income' ? monthlyHistory[index + 1].income
+                                            : monthlyHistory[index + 1].recurring)
+                                        : value;
+
+                                    const percentChange = prevValue > 0 ? ((value - prevValue) / prevValue) * 100 : 0;
+                                    const isIncrease = percentChange > 0;
+                                    const isDecrease = percentChange < 0;
+
+                                    return (
+                                        <div
+                                            key={month.month}
+                                            className="flex items-center justify-between p-4 bg-gradient-to-br from-gray-50 to-white rounded-xl border border-gray-200 hover:shadow-md transition-shadow"
+                                        >
+                                            <div className="flex-1">
+                                                <p className="font-semibold text-gray-900">
+                                                    {format(parseISO(month.month + '-01'), 'MMMM yyyy')}
+                                                </p>
+                                                {index < monthlyHistory.length - 1 && Math.abs(percentChange) > 0.1 && (
+                                                    <p className={`text-xs mt-1 ${
+                                                        isIncrease ? (historicalType === 'income' ? 'text-green-600' : 'text-red-600')
+                                                        : isDecrease ? (historicalType === 'income' ? 'text-red-600' : 'text-green-600')
+                                                        : 'text-gray-500'
+                                                    }`}>
+                                                        {isIncrease ? '↑' : '↓'} {Math.abs(percentChange).toFixed(1)}% vs previous month
+                                                    </p>
+                                                )}
+                                            </div>
+                                            <div className="text-right">
+                                                <p className={`text-xl font-bold ${
+                                                    historicalType === 'expenses' ? 'text-red-600'
+                                                    : historicalType === 'income' ? 'text-green-600'
+                                                    : 'text-orange-600'
+                                                }`}>
+                                                    {formatCurrency(value)}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Close Button */}
+                            <button
+                                onClick={() => setShowHistoricalModal(false)}
+                                className="w-full mt-6 px-4 py-3 bg-gray-100 hover:bg-gray-200 rounded-xl font-semibold text-gray-700 transition-colors"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {deleteConfirm && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 transform transition-all">
@@ -1559,24 +1743,50 @@ export default function Dashboard() {
     );
 }
 
-function Card({ icon, label, value, gradient, bgGradient }: {
+function Card({ icon, label, value, gradient, bgGradient, onClick, sparklineData, sparklineColor }: {
     icon: React.ReactNode;
     label: string;
     value: string;
     gradient: string;
     bgGradient: string;
+    onClick?: () => void;
+    sparklineData?: number[];
+    sparklineColor?: string;
 }) {
-    return (
-        <div className={`bg-gradient-to-br ${bgGradient} p-6 rounded-2xl shadow-lg border border-white/50 backdrop-blur-sm hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1`}>
+    const CardContent = (
+        <>
             <div className="flex items-center justify-between mb-4">
                 <div className={`p-3 rounded-xl bg-gradient-to-br ${gradient} shadow-lg`}>
                     <div className="text-white">{icon}</div>
                 </div>
+                {sparklineData && sparklineData.length >= 2 && sparklineColor && (
+                    <MiniSparkline data={sparklineData} color={sparklineColor} />
+                )}
             </div>
             <div>
                 <p className="text-3xl font-bold text-gray-900 mb-1">{value}</p>
                 <p className="text-sm font-medium text-gray-600">{label}</p>
+                {onClick && (
+                    <p className="text-xs text-gray-400 mt-1">Tap for history</p>
+                )}
             </div>
+        </>
+    );
+
+    if (onClick) {
+        return (
+            <button
+                onClick={onClick}
+                className={`w-full text-left bg-gradient-to-br ${bgGradient} p-6 rounded-2xl shadow-lg border border-white/50 backdrop-blur-sm hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1 active:scale-95`}
+            >
+                {CardContent}
+            </button>
+        );
+    }
+
+    return (
+        <div className={`bg-gradient-to-br ${bgGradient} p-6 rounded-2xl shadow-lg border border-white/50 backdrop-blur-sm hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1`}>
+            {CardContent}
         </div>
     );
 }
