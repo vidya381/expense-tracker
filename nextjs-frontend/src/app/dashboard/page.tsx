@@ -865,7 +865,6 @@ export default function Dashboard() {
                             value={formatCurrency(summary?.recurring_expenses || 0)}
                             gradient="from-orange-500 to-amber-500"
                             bgGradient="from-orange-50 to-amber-50"
-                            onClick={() => openHistoricalModal('recurring')}
                         />
                     </div>
 
@@ -908,7 +907,6 @@ export default function Dashboard() {
                                         value={formatCurrency(summary?.recurring_expenses || 0)}
                                         gradient="from-orange-500 to-amber-500"
                                         bgGradient="from-orange-50 to-amber-50"
-                                        onClick={() => openHistoricalModal('recurring')}
                                     />
                                 </div>
                             </div>
@@ -1476,8 +1474,8 @@ export default function Dashboard() {
             </div>
 
             {/* Delete Confirmation Modal */}
-            {/* Historical Modal */}
-            {showHistoricalModal && monthlyHistory.length > 0 && (
+            {/* Historical Modal - Only for Expenses and Income (Last 6 Months) */}
+            {showHistoricalModal && monthlyHistory.length > 0 && historicalType !== 'recurring' && (
                 <div
                     className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center overflow-hidden"
                     onClick={() => setShowHistoricalModal(false)}
@@ -1490,23 +1488,17 @@ export default function Dashboard() {
                             {/* Header */}
                             <div className="mb-6">
                                 <h3 className="text-xl font-bold text-gray-900">
-                                    {historicalType === 'expenses' && 'Expenses History'}
-                                    {historicalType === 'income' && 'Income History'}
-                                    {historicalType === 'recurring' && 'Recurring History'}
+                                    {historicalType === 'expenses' && 'Expenses History (Last 6 Months)'}
+                                    {historicalType === 'income' && 'Income History (Last 6 Months)'}
                                 </h3>
                             </div>
 
                             {/* Monthly List */}
                             <div className="space-y-3">
                                 {monthlyHistory.map((month, index) => {
-                                    const value = historicalType === 'expenses' ? month.expenses
-                                        : historicalType === 'income' ? month.income
-                                        : month.recurring;
-
+                                    const value = historicalType === 'expenses' ? month.expenses : month.income;
                                     const prevValue = index < monthlyHistory.length - 1
-                                        ? (historicalType === 'expenses' ? monthlyHistory[index + 1].expenses
-                                            : historicalType === 'income' ? monthlyHistory[index + 1].income
-                                            : monthlyHistory[index + 1].recurring)
+                                        ? (historicalType === 'expenses' ? monthlyHistory[index + 1].expenses : monthlyHistory[index + 1].income)
                                         : value;
 
                                     const percentChange = prevValue > 0 ? ((value - prevValue) / prevValue) * 100 : 0;
@@ -1534,9 +1526,7 @@ export default function Dashboard() {
                                             </div>
                                             <div className="text-right">
                                                 <p className={`text-xl font-bold ${
-                                                    historicalType === 'expenses' ? 'text-red-600'
-                                                    : historicalType === 'income' ? 'text-green-600'
-                                                    : 'text-orange-600'
+                                                    historicalType === 'expenses' ? 'text-red-600' : 'text-green-600'
                                                 }`}>
                                                     {formatCurrency(value)}
                                                 </p>
