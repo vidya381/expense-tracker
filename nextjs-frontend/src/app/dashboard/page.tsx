@@ -941,17 +941,17 @@ export default function Dashboard() {
                 )}
 
                 {/* 4. Transaction History */}
-                <section className="bg-white/80 backdrop-blur-sm shadow-xl rounded-2xl p-6 border border-white/20">
-                    <div className="mb-6">
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4">
+                <section className="bg-white/80 backdrop-blur-sm shadow-xl rounded-2xl p-3 sm:p-6 border border-white/20">
+                    <div className="mb-3 sm:mb-6">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-2 sm:mb-4">
                             <div>
-                                <h2 className="text-xl font-bold text-gray-900 mb-1">Transaction History</h2>
-                                <p className="text-sm text-gray-600">{transactions.length} transaction{transactions.length !== 1 ? 's' : ''} found</p>
+                                <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-0.5 sm:mb-1">Transaction History</h2>
+                                <p className="text-xs sm:text-sm text-gray-600">{transactions.length} transaction{transactions.length !== 1 ? 's' : ''} found</p>
                             </div>
                         </div>
 
                         {/* Search & Filter Controls - Improved Layout */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
                             {/* Category Filter */}
                             <div className="relative sm:col-span-2 lg:col-span-1">
                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -964,7 +964,7 @@ export default function Dashboard() {
                                     placeholder="Filter by category"
                                     value={filterCategory}
                                     onChange={e => setFilterCategory(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-2.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white text-gray-900 placeholder:text-gray-400"
+                                    className="w-full pl-10 pr-4 py-1.5 sm:py-2.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white text-gray-900 placeholder:text-gray-400 text-sm"
                                 />
                             </div>
 
@@ -979,7 +979,7 @@ export default function Dashboard() {
                                             handleJumpToDate();
                                         }
                                     }}
-                                    className="w-full px-3 py-2.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white text-gray-900 text-sm"
+                                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white text-gray-900 text-sm"
                                     placeholder="Jump to date"
                                 />
                                 {jumpToDate && (
@@ -999,30 +999,30 @@ export default function Dashboard() {
 
                             {/* Amount Range Filter */}
                             <div className="relative">
-                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <div className="absolute inset-y-0 left-0 pl-2 sm:pl-3 flex items-center pointer-events-none">
                                     <span className="text-gray-400 text-sm font-medium">$</span>
                                 </div>
                                 <input
                                     type="number"
-                                    placeholder="Min amount"
+                                    placeholder="Min"
                                     value={minAmount}
                                     onChange={e => setMinAmount(e.target.value)}
-                                    className="w-full pl-8 pr-3 py-2.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white text-gray-900 placeholder:text-gray-400 text-sm"
+                                    className="w-full pl-6 sm:pl-8 pr-2 sm:pr-3 py-1.5 sm:py-2.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white text-gray-900 placeholder:text-gray-400 text-sm"
                                     step="0.01"
                                     min="0"
                                 />
                             </div>
 
                             <div className="relative">
-                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <div className="absolute inset-y-0 left-0 pl-2 sm:pl-3 flex items-center pointer-events-none">
                                     <span className="text-gray-400 text-sm font-medium">$</span>
                                 </div>
                                 <input
                                     type="number"
-                                    placeholder="Max amount"
+                                    placeholder="Max"
                                     value={maxAmount}
                                     onChange={e => setMaxAmount(e.target.value)}
-                                    className="w-full pl-8 pr-3 py-2.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white text-gray-900 placeholder:text-gray-400 text-sm"
+                                    className="w-full pl-6 sm:pl-8 pr-2 sm:pr-3 py-1.5 sm:py-2.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white text-gray-900 placeholder:text-gray-400 text-sm"
                                     step="0.01"
                                     min="0"
                                 />
@@ -1030,11 +1030,11 @@ export default function Dashboard() {
                         </div>
 
                         {/* Sort Order - Separate Row */}
-                        <div className="mt-3 flex justify-end">
+                        <div className="mt-2 sm:mt-3 flex justify-end">
                             <select
                                 value={sortOrder}
                                 onChange={e => setSortOrder(e.target.value as 'date_desc' | 'date_asc')}
-                                className="px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white text-gray-900 font-medium text-sm"
+                                className="px-3 sm:px-4 py-1.5 sm:py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white text-gray-900 font-medium text-sm"
                             >
                                 <option value="date_desc">Newest First</option>
                                 <option value="date_asc">Oldest First</option>
@@ -1068,7 +1068,7 @@ export default function Dashboard() {
                                                 key={`${tx.id}-${index}-${tx.date}`}
                                                 data-transaction-date={tx.date}
                                                 data-transaction-id={tx.id}
-                                                className={`group relative px-3 sm:px-4 py-3 transition-all duration-1000 ease-in-out ${
+                                                className={`group relative px-2 sm:px-4 py-1.5 sm:py-3 transition-all duration-1000 ease-in-out ${
                                                     highlightedTransactionId === tx.id
                                                         ? 'bg-gradient-to-r from-yellow-200 via-yellow-100 to-yellow-50 border-l-4 border-yellow-500'
                                                         : 'bg-white hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50'
@@ -1142,34 +1142,34 @@ export default function Dashboard() {
 
                                                 {/* Mobile Layout */}
                                                 <div className="sm:hidden">
-                                                    <div className="flex items-start justify-between gap-3 mb-2">
+                                                    <div className="flex items-start justify-between gap-2 mb-1">
                                                         <div className="flex-1 min-w-0">
-                                                            <h4 className="text-sm font-semibold text-gray-900 truncate mb-1">
+                                                            <h4 className="text-xs font-semibold text-gray-900 truncate mb-0.5">
                                                                 {tx.description ? decodeHtmlEntities(tx.description) : 'No description'}
                                                             </h4>
-                                                            <div className="flex items-center gap-2 flex-wrap">
-                                                                <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-indigo-100 text-indigo-700">
+                                                            <div className="flex items-center gap-1.5 flex-wrap">
+                                                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-indigo-100 text-indigo-700">
                                                                     {decodeHtmlEntities(tx.category)}
                                                                 </span>
-                                                                <span className="text-xs text-gray-500">
+                                                                <span className="text-[10px] text-gray-500">
                                                                     {formatCalendarDate(tx.date, 'full')}
                                                                 </span>
                                                             </div>
                                                         </div>
-                                                        <div className={`text-lg font-bold flex-shrink-0 ${isExpense ? 'text-red-600' : 'text-green-600'}`}>
+                                                        <div className={`text-sm font-bold flex-shrink-0 ${isExpense ? 'text-red-600' : 'text-green-600'}`}>
                                                             {isExpense ? '-' : '+'}{formatCurrency(Math.abs(tx.amount))}
                                                         </div>
                                                     </div>
-                                                    <div className="flex items-center gap-2">
+                                                    <div className="flex items-center gap-1.5">
                                                         <button
                                                             onClick={() => handleEdit(tx.id)}
-                                                            className="flex-1 px-3 py-1.5 rounded-lg text-sm font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition-all duration-150"
+                                                            className="flex-1 px-2 py-1 rounded-lg text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition-all duration-150"
                                                         >
                                                             Edit
                                                         </button>
                                                         <button
                                                             onClick={() => setDeleteConfirm(tx)}
-                                                            className="flex-1 px-3 py-1.5 rounded-lg text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 transition-all duration-150"
+                                                            className="flex-1 px-2 py-1 rounded-lg text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 transition-all duration-150"
                                                         >
                                                             Delete
                                                         </button>
