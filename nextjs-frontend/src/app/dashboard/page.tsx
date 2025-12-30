@@ -360,100 +360,85 @@ export default function Dashboard() {
         const editedTransactionId = sessionStorage.getItem('editedTransactionId');
         const originalDate = sessionStorage.getItem('originalTransactionDate');
 
-        requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-                // Always restore main dashboard scroll
-                if (savedDashboardScroll) {
-                    window.scrollTo(0, parseInt(savedDashboardScroll, 10));
-                    sessionStorage.removeItem('dashboardScrollPosition');
-                }
+        // Use setTimeout for better mobile compatibility
+        const restoreScroll = () => {
+            // Always restore main dashboard scroll
+            if (savedDashboardScroll) {
+                window.scrollTo({
+                    top: parseInt(savedDashboardScroll, 10),
+                    behavior: 'instant'
+                });
+                sessionStorage.removeItem('dashboardScrollPosition');
+            }
 
-                // Smart transaction history scroll
-                if (editedTransactionId && originalDate) {
-                    const editedId = parseInt(editedTransactionId, 10);
-                    const editedTransaction = transactions.find(tx => tx.id === editedId);
+            // Smart transaction history scroll
+            if (editedTransactionId && originalDate) {
+                const editedId = parseInt(editedTransactionId, 10);
+                const editedTransaction = transactions.find(tx => tx.id === editedId);
 
-                    if (editedTransaction) {
-                        const dateChanged = editedTransaction.date !== originalDate;
+                if (editedTransaction) {
+                    const dateChanged = editedTransaction.date !== originalDate;
 
-                        if (dateChanged) {
-                            // Calculate date difference in days
-                            const oldDate = new Date(originalDate);
-                            const newDate = new Date(editedTransaction.date);
-                            const diffTime = Math.abs(newDate.getTime() - oldDate.getTime());
-                            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                    if (dateChanged) {
+                        // Date changed - smooth scroll to center on edited transaction
+                        const transactionElement = scrollContainerRef.current?.querySelector(
+                            `[data-transaction-id="${editedId}"]`
+                        ) as HTMLElement;
 
-                            // Date changed - smooth scroll to center on edited transaction
-                            const transactionElement = scrollContainerRef.current?.querySelector(
-                                `[data-transaction-id="${editedId}"]`
-                            ) as HTMLElement;
+                        if (transactionElement && scrollContainerRef.current) {
+                            const containerHeight = scrollContainerRef.current.clientHeight;
+                            const elementTop = transactionElement.offsetTop;
+                            const elementHeight = transactionElement.clientHeight;
+                            const scrollPosition = elementTop - (containerHeight / 2) + (elementHeight / 2);
 
-                            if (transactionElement && scrollContainerRef.current) {
-                                // Calculate position to center the transaction in container
-                                const containerHeight = scrollContainerRef.current.clientHeight;
-                                const elementTop = transactionElement.offsetTop;
-                                const elementHeight = transactionElement.clientHeight;
-                                const scrollPosition = elementTop - (containerHeight / 2) + (elementHeight / 2);
+                            scrollContainerRef.current.scrollTo({
+                                top: Math.max(0, scrollPosition),
+                                behavior: 'smooth'
+                            });
 
-                                // Smooth scroll animation
-                                scrollContainerRef.current.scrollTo({
-                                    top: Math.max(0, scrollPosition),
-                                    behavior: 'smooth'
-                                });
-
-                                // Show highlight with gradient fade
-                                setHighlightedTransactionId(editedId);
-
-                                // Show updated badge
-                                setShowUpdatedBadge(true);
-                                setTimeout(() => setShowUpdatedBadge(false), 2000);
-
-                                // Remove highlight after fade completes
-                                setTimeout(() => setHighlightedTransactionId(null), 3000);
-
-                                // Show toast for significant date changes (7+ days)
-                                if (diffDays >= 7) {
-                                    const direction = newDate > oldDate ? 'forward' : 'back';
-                                    const oldDateFormatted = formatCalendarDate(originalDate, 'full');
-                                    const newDateFormatted = formatCalendarDate(editedTransaction.date, 'full');
-
-                                    setUpdateToastMessage(
-                                        `Transaction moved from ${oldDateFormatted} to ${newDateFormatted}`
-                                    );
-                                    setShowUpdateToast(true);
-                                    setTimeout(() => setShowUpdateToast(false), 5000);
-                                }
-                            }
-                        } else {
-                            // Date unchanged - show brief highlight without scrolling
-                            // Restore scroll position first
-                            if (savedTransactionScroll && scrollContainerRef.current) {
-                                scrollContainerRef.current.scrollTop = parseInt(savedTransactionScroll, 10);
-                            }
-
-                            // Show brief highlight and tick mark in place
                             setHighlightedTransactionId(editedId);
-
-                            // Show updated badge
                             setShowUpdatedBadge(true);
                             setTimeout(() => setShowUpdatedBadge(false), 2000);
+                            setTimeout(() => setHighlightedTransactionId(null), 3000);
 
-                            // Remove highlight after shorter duration (1.5s instead of 3s)
-                            setTimeout(() => setHighlightedTransactionId(null), 1500);
+                            // Show toast for significant date changes (7+ days)
+                            const oldDate = new Date(originalDate);
+                            const newDate = new Date(editedTransaction.date);
+                            const diffDays = Math.ceil(Math.abs(newDate.getTime() - oldDate.getTime()) / (1000 * 60 * 60 * 24));
+                            if (diffDays >= 7) {
+                                setUpdateToastMessage(
+                                    `Transaction moved from ${formatCalendarDate(originalDate, 'full')} to ${formatCalendarDate(editedTransaction.date, 'full')}`
+                                );
+                                setShowUpdateToast(true);
+                                setTimeout(() => setShowUpdateToast(false), 5000);
+                            }
                         }
-                    }
+                    } else {
+                        // Date unchanged - restore scroll position
+                        if (savedTransactionScroll && scrollContainerRef.current) {
+                            scrollContainerRef.current.scrollTop = parseInt(savedTransactionScroll, 10);
+                        }
 
-                    // Clean up
-                    sessionStorage.removeItem('editedTransactionId');
-                    sessionStorage.removeItem('originalTransactionDate');
-                    sessionStorage.removeItem('transactionHistoryScrollPosition');
-                } else if (savedTransactionScroll && scrollContainerRef.current) {
-                    // No edit tracked - restore scroll position normally
-                    scrollContainerRef.current.scrollTop = parseInt(savedTransactionScroll, 10);
-                    sessionStorage.removeItem('transactionHistoryScrollPosition');
+                        setHighlightedTransactionId(editedId);
+                        setShowUpdatedBadge(true);
+                        setTimeout(() => setShowUpdatedBadge(false), 2000);
+                        setTimeout(() => setHighlightedTransactionId(null), 1500);
+                    }
                 }
-            });
-        });
+
+                // Clean up
+                sessionStorage.removeItem('editedTransactionId');
+                sessionStorage.removeItem('originalTransactionDate');
+                sessionStorage.removeItem('transactionHistoryScrollPosition');
+            } else if (savedTransactionScroll && scrollContainerRef.current) {
+                // No edit tracked - restore scroll position normally
+                scrollContainerRef.current.scrollTop = parseInt(savedTransactionScroll, 10);
+                sessionStorage.removeItem('transactionHistoryScrollPosition');
+            }
+        };
+
+        // Call restoreScroll with a small delay for mobile compatibility
+        setTimeout(restoreScroll, 100);
     }, [transactions, loading]);
 
     // Fetch categories when transaction modal opens
@@ -548,6 +533,11 @@ export default function Dashboard() {
     const handleEdit = (transactionId: number) => {
         const transaction = transactions.find(t => t.id === transactionId);
         if (transaction) {
+            // Save scroll positions before opening modal
+            sessionStorage.setItem('dashboardScrollPosition', window.scrollY.toString());
+            if (scrollContainerRef.current) {
+                sessionStorage.setItem('transactionHistoryScrollPosition', scrollContainerRef.current.scrollTop.toString());
+            }
             setEditingTransaction(transaction);
             setShowTransactionModal(true);
         }
@@ -1378,13 +1368,6 @@ export default function Dashboard() {
                                         if (editingTransaction) {
                                             sessionStorage.setItem('editedTransactionId', editingTransaction.id.toString());
                                             sessionStorage.setItem('originalTransactionDate', editingTransaction.date);
-                                        }
-
-                                        // Save both scroll positions before refreshing
-                                        sessionStorage.setItem('dashboardScrollPosition', window.scrollY.toString());
-
-                                        if (scrollContainerRef.current) {
-                                            sessionStorage.setItem('transactionHistoryScrollPosition', scrollContainerRef.current.scrollTop.toString());
                                         }
 
                                         setShowTransactionModal(false);
