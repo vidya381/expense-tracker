@@ -45,6 +45,43 @@ function decodeHtmlEntities(text: string): string {
     return doc.documentElement.textContent || text;
 }
 
+// Calculate days left in budget period
+function getDaysLeftInPeriod(period: string): number {
+    const now = new Date();
+
+    if (period === 'monthly') {
+        const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        const daysLeft = Math.ceil((lastDayOfMonth.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        return Math.max(0, daysLeft);
+    } else if (period === 'weekly') {
+        const dayOfWeek = now.getDay();
+        const daysUntilSunday = 7 - dayOfWeek;
+        return daysUntilSunday;
+    } else if (period === 'yearly') {
+        const lastDayOfYear = new Date(now.getFullYear(), 11, 31);
+        const daysLeft = Math.ceil((lastDayOfYear.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        return Math.max(0, daysLeft);
+    }
+
+    return 0;
+}
+
+// Calculate total days in budget period
+function getTotalDaysInPeriod(period: string): number {
+    const now = new Date();
+
+    if (period === 'monthly') {
+        return new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    } else if (period === 'weekly') {
+        return 7;
+    } else if (period === 'yearly') {
+        const isLeapYear = (now.getFullYear() % 4 === 0 && now.getFullYear() % 100 !== 0) || (now.getFullYear() % 400 === 0);
+        return isLeapYear ? 366 : 365;
+    }
+
+    return 30; // default
+}
+
 interface SummaryData {
     total_expenses: number;
     total_income: number;
@@ -130,6 +167,7 @@ export default function Dashboard() {
     const [budgets, setBudgets] = useState<Budget[]>([]);
     const [budgetAlerts, setBudgetAlerts] = useState<Budget[]>([]);
     const [showToast, setShowToast] = useState(false);
+    const [showOnTrackBudgets, setShowOnTrackBudgets] = useState(false);
 
     // Transaction update toast
     const [showUpdateToast, setShowUpdateToast] = useState(false);
@@ -1001,102 +1039,195 @@ export default function Dashboard() {
                     )}
                 </section>
 
-                {/* 3. Budget Overview */}
-                {budgets.length > 0 && (
-                    <section className="bg-white/80 backdrop-blur-sm shadow-xl rounded-2xl p-6 border border-white/20">
-                        <div className="flex items-center justify-between mb-6">
-                            <div>
-                                <h2 className="text-xl font-bold text-gray-900 mb-1">Budget Overview</h2>
-                                <p className="text-sm text-gray-600">Track your spending against budgets</p>
-                            </div>
-                            <button
-                                onClick={() => router.push('/budgets')}
-                                className="px-4 py-2 text-sm font-medium text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-all duration-200 border border-indigo-200"
+                {/* 3. Budget Overview - Status-Based with Time-Aware Info */}
+                {budgets.length > 0 && (() => {
+                    // Group budgets by status
+                    const overBudget = budgets.filter(b => (b.current_spending / b.amount) * 100 >= 100);
+                    const warning = budgets.filter(b => {
+                        const progress = (b.current_spending / b.amount) * 100;
+                        return progress >= b.alert_threshold && progress < 100;
+                    });
+                    const onTrack = budgets.filter(b => {
+                        const progress = (b.current_spending / b.amount) * 100;
+                        return progress < b.alert_threshold;
+                    });
+
+                    const BudgetCard = ({ budget, status }: { budget: Budget; status: 'over' | 'warning' | 'ontrack' }) => {
+                        const progress = Math.min((budget.current_spending / budget.amount) * 100, 100);
+                        const remaining = Math.max(0, budget.amount - budget.current_spending);
+                        const daysLeft = getDaysLeftInPeriod(budget.period);
+                        const totalDays = getTotalDaysInPeriod(budget.period);
+                        const daysPassed = totalDays - daysLeft;
+
+                        // Calculate daily burn rates
+                        const actualDailyBurn = daysPassed > 0 ? budget.current_spending / daysPassed : 0;
+                        const allowedDailyBurn = budget.amount / totalDays;
+
+                        let statusConfig = {
+                            bgColor: 'bg-emerald-50',
+                            borderColor: 'border-emerald-200',
+                            textColor: 'text-emerald-700',
+                            progressColor: 'bg-emerald-400',
+                            icon: null as React.ReactNode
+                        };
+
+                        if (status === 'over') {
+                            statusConfig = {
+                                bgColor: 'bg-rose-50',
+                                borderColor: 'border-rose-200',
+                                textColor: 'text-rose-700',
+                                progressColor: 'bg-rose-400',
+                                icon: <FiAlertTriangle className="w-5 h-5 text-rose-600" />
+                            };
+                        } else if (status === 'warning') {
+                            statusConfig = {
+                                bgColor: 'bg-amber-50',
+                                borderColor: 'border-amber-200',
+                                textColor: 'text-amber-700',
+                                progressColor: 'bg-amber-400',
+                                icon: <FiAlertTriangle className="w-5 h-5 text-amber-600" />
+                            };
+                        }
+
+                        return (
+                            <div
+                                className={`${statusConfig.bgColor} border ${statusConfig.borderColor} rounded-xl p-4 hover:shadow-lg transition-all duration-200`}
                             >
-                                View All →
-                            </button>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {budgets.slice(0, 6).map((budget) => {
-                                const progress = Math.min((budget.current_spending / budget.amount) * 100, 100);
-                                const remaining = Math.max(0, budget.amount - budget.current_spending);
-
-                                let progressColor = 'bg-emerald-400';
-                                let bgColor = 'bg-emerald-50';
-                                let textColor = 'text-emerald-700';
-                                let borderColor = 'border-emerald-200';
-
-                                if (progress >= budget.alert_threshold) {
-                                    progressColor = 'bg-rose-400';
-                                    bgColor = 'bg-rose-50';
-                                    textColor = 'text-rose-700';
-                                    borderColor = 'border-rose-200';
-                                } else if (progress >= budget.alert_threshold * 0.8) {
-                                    progressColor = 'bg-amber-400';
-                                    bgColor = 'bg-amber-50';
-                                    textColor = 'text-amber-700';
-                                    borderColor = 'border-amber-200';
-                                }
-
-                                return (
-                                    <div
-                                        key={budget.id}
-                                        className={`${bgColor} border ${borderColor} rounded-xl p-4 hover:shadow-lg transition-all duration-200`}
-                                    >
-                                        <div className="flex items-start justify-between mb-3">
-                                            <div className="flex-1">
-                                                <h3 className="font-bold text-gray-900 text-sm mb-1">
-                                                    {budget.category_name}
-                                                </h3>
-                                                <span className="text-xs px-2 py-1 bg-white rounded-full text-gray-600 capitalize">
-                                                    {budget.period}
-                                                </span>
-                                            </div>
-                                            {progress >= budget.alert_threshold && (
-                                                <FiAlertTriangle className={`w-5 h-5 ${textColor} flex-shrink-0`} />
-                                            )}
-                                        </div>
-
-                                        <div className="mb-3">
-                                            <div className="flex items-baseline justify-between mb-2">
-                                                <span className={`text-2xl font-bold ${textColor}`}>
-                                                    ${budget.current_spending.toFixed(0)}
-                                                </span>
-                                                <span className="text-sm text-gray-600">
-                                                    / ${budget.amount.toFixed(0)}
-                                                </span>
-                                            </div>
-
-                                            <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden mb-2">
-                                                <div
-                                                    className={`h-full ${progressColor} transition-all duration-500`}
-                                                    style={{ width: `${progress}%` }}
-                                                />
-                                            </div>
-
-                                            <div className="flex items-center justify-between text-xs text-gray-600">
-                                                <span>{progress.toFixed(0)}% used</span>
-                                                <span className="font-semibold">${remaining.toFixed(0)} left</span>
-                                            </div>
-                                        </div>
+                                {/* Header */}
+                                <div className="flex items-start justify-between mb-3">
+                                    <div className="flex-1">
+                                        <h3 className="font-bold text-gray-900 text-sm mb-1">
+                                            {budget.category_name}
+                                        </h3>
+                                        <span className="text-xs px-2 py-1 bg-white rounded-full text-gray-600 capitalize">
+                                            {budget.period}
+                                        </span>
                                     </div>
-                                );
-                            })}
-                        </div>
+                                    {statusConfig.icon}
+                                </div>
 
-                        {budgets.length > 6 && (
-                            <div className="text-center mt-4">
+                                {/* Amount and Progress */}
+                                <div className="mb-3">
+                                    <div className="flex items-baseline justify-between mb-2">
+                                        <span className={`text-2xl font-bold ${statusConfig.textColor}`}>
+                                            ${budget.current_spending.toFixed(0)}
+                                        </span>
+                                        <span className="text-sm text-gray-600">
+                                            / ${budget.amount.toFixed(0)}
+                                        </span>
+                                    </div>
+
+                                    <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden mb-2">
+                                        <div
+                                            className={`h-full ${statusConfig.progressColor} transition-all duration-500`}
+                                            style={{ width: `${progress}%` }}
+                                        />
+                                    </div>
+
+                                    <div className="flex items-center justify-between text-xs text-gray-600 mb-2">
+                                        <span>{progress.toFixed(0)}% used</span>
+                                        <span className="font-semibold">${remaining.toFixed(0)} left</span>
+                                    </div>
+                                </div>
+
+                                {/* Time-Aware Information */}
+                                <div className="pt-3 border-t border-gray-200/50 space-y-1.5">
+                                    <div className="flex items-center justify-between text-xs">
+                                        <span className="text-gray-600">Days remaining:</span>
+                                        <span className="font-semibold text-gray-900">{daysLeft} days</span>
+                                    </div>
+                                    <div className="flex items-center justify-between text-xs">
+                                        <span className="text-gray-600">Daily spending:</span>
+                                        <span className={`font-semibold ${
+                                            actualDailyBurn > allowedDailyBurn ? 'text-rose-600' : 'text-emerald-600'
+                                        }`}>
+                                            ${actualDailyBurn.toFixed(2)}/day
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center justify-between text-xs">
+                                        <span className="text-gray-600">Budget allows:</span>
+                                        <span className="font-semibold text-gray-900">${allowedDailyBurn.toFixed(2)}/day</span>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    };
+
+                    return (
+                        <section className="bg-white/80 backdrop-blur-sm shadow-xl rounded-2xl p-6 border border-white/20">
+                            <div className="flex items-center justify-between mb-6">
+                                <div>
+                                    <h2 className="text-xl font-bold text-gray-900 mb-1">Budget Overview</h2>
+                                    <p className="text-sm text-gray-600">
+                                        {overBudget.length > 0 && <span className="text-rose-600 font-semibold">{overBudget.length} over budget</span>}
+                                        {overBudget.length > 0 && warning.length > 0 && <span>, </span>}
+                                        {warning.length > 0 && <span className="text-amber-600 font-semibold">{warning.length} need attention</span>}
+                                        {(overBudget.length > 0 || warning.length > 0) && onTrack.length > 0 && <span>, </span>}
+                                        {onTrack.length > 0 && <span className="text-emerald-600 font-semibold">{onTrack.length} on track</span>}
+                                    </p>
+                                </div>
                                 <button
                                     onClick={() => router.push('/budgets')}
-                                    className="text-sm text-indigo-600 hover:text-indigo-700 font-semibold"
+                                    className="px-4 py-2 text-sm font-medium text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-all duration-200 border border-indigo-200"
                                 >
-                                    View {budgets.length - 6} more budgets →
+                                    View All →
                                 </button>
                             </div>
-                        )}
-                    </section>
-                )}
+
+                            {/* Over Budget - Always Visible */}
+                            {overBudget.length > 0 && (
+                                <div className="mb-6">
+                                    <h3 className="text-sm font-bold text-rose-700 mb-3 flex items-center gap-2">
+                                        <FiAlertTriangle className="w-4 h-4" />
+                                        Over Budget ({overBudget.length})
+                                    </h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                        {overBudget.map((budget) => (
+                                            <BudgetCard key={budget.id} budget={budget} status="over" />
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Warning - Always Visible */}
+                            {warning.length > 0 && (
+                                <div className="mb-6">
+                                    <h3 className="text-sm font-bold text-amber-700 mb-3 flex items-center gap-2">
+                                        <FiAlertTriangle className="w-4 h-4" />
+                                        Needs Attention ({warning.length})
+                                    </h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                        {warning.map((budget) => (
+                                            <BudgetCard key={budget.id} budget={budget} status="warning" />
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* On Track - Collapsible */}
+                            {onTrack.length > 0 && (
+                                <div>
+                                    <button
+                                        onClick={() => setShowOnTrackBudgets(!showOnTrackBudgets)}
+                                        className="text-sm font-bold text-emerald-700 mb-3 flex items-center gap-2 hover:text-emerald-800 transition-colors"
+                                    >
+                                        <span className={`transform transition-transform ${showOnTrackBudgets ? 'rotate-90' : ''}`}>
+                                            ▶
+                                        </span>
+                                        On Track ({onTrack.length})
+                                    </button>
+                                    {showOnTrackBudgets && (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                            {onTrack.map((budget) => (
+                                                <BudgetCard key={budget.id} budget={budget} status="ontrack" />
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </section>
+                    );
+                })()}
 
                 {/* 4. Transaction History - Desktop Only */}
                 <section className="hidden sm:block bg-white/80 backdrop-blur-sm shadow-xl rounded-2xl p-3 sm:p-6 border border-white/20">
