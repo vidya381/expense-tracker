@@ -131,10 +131,12 @@ export default function Dashboard() {
     const [summary, setSummary] = useState<SummaryData | null>(null);
     const [selectedMonth, setSelectedMonth] = useState<string>(format(new Date(), 'yyyy-MM'));
     const [spendingData, setSpendingData] = useState<SpendingCategory[]>([]);
+    const [previousMonthSpending, setPreviousMonthSpending] = useState<SpendingCategory[]>([]);
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
+    const [showAllCategories, setShowAllCategories] = useState(false);
 
     // Filters, sorting & pagination
     const [page, setPage] = useState(1);
@@ -306,7 +308,7 @@ export default function Dashboard() {
                     setMonthlyHistory(history);
                 }
 
-                // 3. Spending breakdown by category for month
+                // 3. Spending breakdown by category for current month
                 const spendingRes = await fetch(
                     `${process.env.NEXT_PUBLIC_API_URL}/summary/category/monthly?year=${selectedMonth.slice(0, 4)}&month=${parseInt(selectedMonth.slice(5, 7))}`,
                     { headers: { Authorization: `Bearer ${token}` } }
@@ -321,6 +323,27 @@ export default function Dashboard() {
                         }))
                         : []
                 );
+
+                // 3.1 Fetch previous month's spending for comparison
+                const prevMonthDate = subMonths(parseISO(selectedMonth + '-01'), 1);
+                const prevMonthYear = format(prevMonthDate, 'yyyy');
+                const prevMonthNum = parseInt(format(prevMonthDate, 'MM'));
+
+                const prevSpendingRes = await fetch(
+                    `${process.env.NEXT_PUBLIC_API_URL}/summary/category/monthly?year=${prevMonthYear}&month=${prevMonthNum}`,
+                    { headers: { Authorization: `Bearer ${token}` } }
+                );
+                if (prevSpendingRes.ok) {
+                    const prevSpendingJson = await prevSpendingRes.json();
+                    setPreviousMonthSpending(
+                        Array.isArray(prevSpendingJson)
+                            ? prevSpendingJson.map((item: any) => ({
+                                category: item.category || 'Unknown',
+                                amount: item.total || 0,
+                            }))
+                            : []
+                    );
+                }
 
                 // 4. Transactions list with filtering/sorting - Fetch ALL transactions
                 const params = new URLSearchParams({
@@ -976,63 +999,163 @@ export default function Dashboard() {
                     ) : (
                         (() => {
                             const totalSpending = spendingData.reduce((sum, item) => sum + item.amount, 0);
-                            const maxAmount = Math.max(...spendingData.map(item => item.amount));
+                            const top3 = [...spendingData].sort((a, b) => b.amount - a.amount).slice(0, 3);
+                            const restCategories = [...spendingData].sort((a, b) => b.amount - a.amount).slice(3);
+
+                            // Helper function to get previous month's amount for a category
+                            const getPrevMonthAmount = (category: string) => {
+                                const prevItem = previousMonthSpending.find(item => item.category === category);
+                                return prevItem ? prevItem.amount : 0;
+                            };
+
+                            // Helper function to generate smart insights
+                            const getSmartInsight = (category: string, currentAmount: number, prevAmount: number, percentage: number) => {
+                                const change = currentAmount - prevAmount;
+                                const percentChange = prevAmount > 0 ? ((change / prevAmount) * 100) : 0;
+
+                                // Insights based on spending patterns
+                                if (percentChange > 50) {
+                                    return `Spending increased significantly. Consider reviewing recent ${category.toLowerCase()} expenses.`;
+                                } else if (percentChange > 20) {
+                                    return `Spending up ${percentChange.toFixed(0)}% from last month. Keep an eye on this.`;
+                                } else if (percentChange < -20) {
+                                    return `Great job! You've reduced spending by ${Math.abs(percentChange).toFixed(0)}%.`;
+                                } else if (percentage > 40) {
+                                    return `This is ${percentage.toFixed(0)}% of your total spending. Consider if this aligns with your priorities.`;
+                                } else if (percentChange > 0 && percentChange <= 20) {
+                                    return `Spending is stable with a slight increase of ${percentChange.toFixed(0)}%.`;
+                                } else if (Math.abs(percentChange) < 5) {
+                                    return `Spending is consistent with last month. Good budgeting!`;
+                                } else {
+                                    return `You're spending ${formatCurrency(currentAmount)} on ${category.toLowerCase()} this month.`;
+                                }
+                            };
+
+                            const medals = ['🥇', '🥈', '🥉'];
 
                             return (
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                    {spendingData.map((item, index) => {
-                                        const percentage = totalSpending > 0 ? (item.amount / totalSpending) * 100 : 0;
-                                        const barWidth = maxAmount > 0 ? (item.amount / maxAmount) * 100 : 0;
+                                <div className="space-y-6">
+                                    {/* Top 3 Categories */}
+                                    <div>
+                                        <h3 className="text-lg font-bold text-gray-900 mb-4">Your Top 3 Spending Categories</h3>
+                                        <div className="space-y-4">
+                                            {top3.map((item, index) => {
+                                                const percentage = totalSpending > 0 ? (item.amount / totalSpending) * 100 : 0;
+                                                const prevAmount = getPrevMonthAmount(item.category);
+                                                const change = item.amount - prevAmount;
+                                                const percentChange = prevAmount > 0 ? ((change / prevAmount) * 100) : 0;
 
-                                        // Color palette for different categories
-                                        const colors = [
-                                            { gradient: 'from-indigo-500 to-purple-600', bg: 'from-indigo-50 to-purple-50', border: 'border-indigo-200' },
-                                            { gradient: 'from-pink-500 to-rose-600', bg: 'from-pink-50 to-rose-50', border: 'border-pink-200' },
-                                            { gradient: 'from-blue-500 to-cyan-600', bg: 'from-blue-50 to-cyan-50', border: 'border-blue-200' },
-                                            { gradient: 'from-emerald-500 to-teal-600', bg: 'from-emerald-50 to-teal-50', border: 'border-emerald-200' },
-                                            { gradient: 'from-amber-500 to-orange-600', bg: 'from-amber-50 to-orange-50', border: 'border-amber-200' },
-                                            { gradient: 'from-violet-500 to-purple-600', bg: 'from-violet-50 to-purple-50', border: 'border-violet-200' },
-                                        ];
-                                        const color = colors[index % colors.length];
+                                                const isIncrease = percentChange > 0;
+                                                const isDecrease = percentChange < 0;
+                                                const isSignificantChange = Math.abs(percentChange) >= 5;
 
-                                        return (
-                                            <div
-                                                key={item.category}
-                                                className={`bg-gradient-to-br ${color.bg} p-5 rounded-xl border-2 ${color.border} shadow-md hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1`}
+                                                const insight = getSmartInsight(item.category, item.amount, prevAmount, percentage);
+
+                                                return (
+                                                    <div
+                                                        key={item.category}
+                                                        className="bg-gradient-to-br from-white to-gray-50 p-6 rounded-2xl border-2 border-gray-200 shadow-md hover:shadow-xl transition-all duration-200"
+                                                    >
+                                                        {/* Header with Medal and Category */}
+                                                        <div className="flex items-start gap-4 mb-4">
+                                                            <div className="text-4xl">{medals[index]}</div>
+                                                            <div className="flex-1">
+                                                                <h4 className="text-xl font-bold text-gray-900 mb-2">{item.category}</h4>
+                                                                <div className="flex items-baseline gap-3 flex-wrap">
+                                                                    <span className="text-3xl font-bold text-indigo-600">
+                                                                        {formatCurrency(item.amount)}
+                                                                    </span>
+                                                                    {isSignificantChange && (
+                                                                        <span className={`text-sm font-semibold flex items-center gap-1 ${
+                                                                            isIncrease ? 'text-red-600' : 'text-green-600'
+                                                                        }`}>
+                                                                            {isIncrease ? '📈' : '📉'}
+                                                                            {isIncrease ? '+' : ''}{percentChange.toFixed(0)}% vs last month
+                                                                        </span>
+                                                                    )}
+                                                                    {!isSignificantChange && prevAmount > 0 && (
+                                                                        <span className="text-sm font-semibold text-gray-500 flex items-center gap-1">
+                                                                            ➡️ Similar to last month
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Stats Row */}
+                                                        <div className="grid grid-cols-2 gap-4 mb-4">
+                                                            <div className="bg-indigo-50 rounded-xl p-3">
+                                                                <p className="text-xs text-gray-600 mb-1">% of Total</p>
+                                                                <p className="text-lg font-bold text-indigo-700">{percentage.toFixed(0)}%</p>
+                                                            </div>
+                                                            <div className="bg-gray-100 rounded-xl p-3">
+                                                                <p className="text-xs text-gray-600 mb-1">Last Month</p>
+                                                                <p className="text-lg font-bold text-gray-700">
+                                                                    {prevAmount > 0 ? formatCurrency(prevAmount) : 'N/A'}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Smart Insight */}
+                                                        <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded-r-lg">
+                                                            <p className="text-sm text-blue-800 flex items-start gap-2">
+                                                                <span className="text-lg">💡</span>
+                                                                <span className="flex-1">{insight}</span>
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+
+                                    {/* Other Categories - Collapsible */}
+                                    {restCategories.length > 0 && (
+                                        <div>
+                                            <button
+                                                onClick={() => setShowAllCategories(!showAllCategories)}
+                                                className="flex items-center gap-2 text-indigo-600 hover:text-indigo-700 font-semibold transition-colors mb-4"
                                             >
-                                                <div className="flex items-start justify-between mb-3">
-                                                    <div className="flex-1">
-                                                        <h3 className="text-sm font-semibold text-gray-700 mb-1 truncate" title={item.category}>
-                                                            {item.category}
-                                                        </h3>
-                                                        <p className="text-2xl font-bold text-gray-900">
-                                                            {formatCurrency(item.amount)}
-                                                        </p>
-                                                    </div>
-                                                    <div className={`p-2 rounded-lg bg-gradient-to-br ${color.gradient} shadow-lg`}>
-                                                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                                                        </svg>
-                                                    </div>
-                                                </div>
+                                                <span className={`transform transition-transform ${showAllCategories ? 'rotate-90' : ''}`}>
+                                                    ▶
+                                                </span>
+                                                View {restCategories.length} More {restCategories.length === 1 ? 'Category' : 'Categories'}
+                                            </button>
 
-                                                {/* Progress bar */}
-                                                <div className="mt-4">
-                                                    <div className="flex items-center justify-between mb-2">
-                                                        <span className="text-xs font-medium text-gray-600">
-                                                            {percentage.toFixed(1)}% of total
-                                                        </span>
-                                                    </div>
-                                                    <div className="w-full bg-white/50 rounded-full h-2.5 overflow-hidden shadow-inner">
-                                                        <div
-                                                            className={`h-full bg-gradient-to-r ${color.gradient} rounded-full transition-all duration-500 ease-out`}
-                                                            style={{ width: `${barWidth}%` }}
-                                                        />
-                                                    </div>
+                                            {showAllCategories && (
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                                    {restCategories.map((item) => {
+                                                        const percentage = totalSpending > 0 ? (item.amount / totalSpending) * 100 : 0;
+                                                        const prevAmount = getPrevMonthAmount(item.category);
+                                                        const change = item.amount - prevAmount;
+                                                        const percentChange = prevAmount > 0 ? ((change / prevAmount) * 100) : 0;
+
+                                                        return (
+                                                            <div
+                                                                key={item.category}
+                                                                className="bg-white p-4 rounded-xl border border-gray-200 hover:shadow-md transition-all duration-200"
+                                                            >
+                                                                <h5 className="font-semibold text-gray-900 mb-2">{item.category}</h5>
+                                                                <p className="text-2xl font-bold text-gray-800 mb-2">
+                                                                    {formatCurrency(item.amount)}
+                                                                </p>
+                                                                <div className="flex items-center justify-between text-xs">
+                                                                    <span className="text-gray-600">{percentage.toFixed(1)}% of total</span>
+                                                                    {prevAmount > 0 && Math.abs(percentChange) >= 5 && (
+                                                                        <span className={`font-semibold ${
+                                                                            percentChange > 0 ? 'text-red-600' : 'text-green-600'
+                                                                        }`}>
+                                                                            {percentChange > 0 ? '↑' : '↓'} {Math.abs(percentChange).toFixed(0)}%
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
                                                 </div>
-                                            </div>
-                                        );
-                                    })}
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             );
                         })()
