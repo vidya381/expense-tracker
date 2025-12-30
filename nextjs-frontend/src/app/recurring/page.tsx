@@ -418,7 +418,7 @@ export default function RecurringTransactionsPage() {
                                             <FiCalendar className="w-4 h-4" />
                                             <span>Starts {formatCalendarDate(rec.start_date)}</span>
                                         </div>
-                                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <div className="flex gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                                             <button
                                                 onClick={() => handleEdit(rec)}
                                                 className="p-1.5 bg-white hover:bg-gray-50 rounded-lg transition-colors shadow-sm"
