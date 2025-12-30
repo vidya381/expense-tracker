@@ -282,6 +282,8 @@ export default function Dashboard() {
                         income: m.total_income || 0,
                         recurring: normalizedRecurring
                     }));
+                    console.log('Monthly History for Sparklines:', history);
+                    console.log('Sparkline will show:', history.length >= 2 ? 'YES' : 'NO - Need at least 2 months of data');
                     setMonthlyHistory(history);
                 }
 
