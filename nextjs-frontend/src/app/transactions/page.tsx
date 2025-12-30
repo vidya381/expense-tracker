@@ -60,6 +60,18 @@ export default function TransactionsPage() {
 
     const scrollContainerRef = useRef<HTMLDivElement>(null);
 
+    // Prevent background scroll when modals are open
+    useEffect(() => {
+        if (showDetails || showActionMenu || showTransactionModal) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = 'unset';
+        }
+        return () => {
+            document.body.style.overflow = 'unset';
+        };
+    }, [showDetails, showActionMenu, showTransactionModal]);
+
     // Auth check
     useEffect(() => {
         if (initialized) {
