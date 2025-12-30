@@ -678,18 +678,9 @@ export default function TransactionsPage() {
                         onClick={(e) => e.stopPropagation()}
                     >
                         <div className="p-6">
-                            {/* Drag indicator */}
-                            <div className="w-12 h-1 bg-gray-300 rounded-full mx-auto mb-6"></div>
-
                             {/* Header */}
-                            <div className="flex items-center justify-between mb-6">
+                            <div className="mb-6">
                                 <h3 className="text-xl font-bold text-gray-900">Transaction Details</h3>
-                                <button
-                                    onClick={() => setShowDetails(null)}
-                                    className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                                >
-                                    <FiX className="w-5 h-5 text-gray-500" />
-                                </button>
                             </div>
 
                             {/* Amount - Large Display */}
