@@ -53,6 +53,10 @@ export default function TransactionsPage() {
     // Long press state
     const [showActionMenu, setShowActionMenu] = useState<number | null>(null);
     const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+    const isLongPress = useRef<boolean>(false);
+
+    // Details view state
+    const [showDetails, setShowDetails] = useState<Transaction | null>(null);
 
     const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -254,10 +258,12 @@ export default function TransactionsPage() {
         }
     };
 
-    // Long press handlers
-    const handleTouchStart = (transactionId: number) => {
+    // Touch handlers for tap and long press
+    const handleTouchStart = (transaction: Transaction) => {
+        isLongPress.current = false;
         longPressTimer.current = setTimeout(() => {
-            setShowActionMenu(transactionId);
+            isLongPress.current = true;
+            setShowActionMenu(transaction.id);
             // Haptic feedback if available
             if (navigator.vibrate) {
                 navigator.vibrate(50);
@@ -265,11 +271,18 @@ export default function TransactionsPage() {
         }, 500); // 500ms long press
     };
 
-    const handleTouchEnd = () => {
+    const handleTouchEnd = (transaction: Transaction) => {
         if (longPressTimer.current) {
             clearTimeout(longPressTimer.current);
             longPressTimer.current = null;
         }
+
+        // If it wasn't a long press, treat as single tap
+        if (!isLongPress.current) {
+            setShowDetails(transaction);
+        }
+
+        isLongPress.current = false;
     };
 
     const handleTouchMove = () => {
@@ -447,8 +460,8 @@ export default function TransactionsPage() {
                                                 <div
                                                     className="px-2 py-1.5 active:bg-gray-100 transition-colors select-none"
                                                     style={{ WebkitUserSelect: 'none', userSelect: 'none', WebkitTouchCallout: 'none' }}
-                                                    onTouchStart={() => handleTouchStart(tx.id)}
-                                                    onTouchEnd={handleTouchEnd}
+                                                    onTouchStart={() => handleTouchStart(tx)}
+                                                    onTouchEnd={() => handleTouchEnd(tx)}
                                                     onTouchMove={handleTouchMove}
                                                     onContextMenu={(e) => e.preventDefault()}
                                                 >
@@ -649,6 +662,100 @@ export default function TransactionsPage() {
                                     Cancel
                                 </button>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Transaction Details Modal - Mobile Only */}
+            {showDetails && (
+                <div
+                    className="fixed inset-0 bg-black/50 z-50 sm:hidden"
+                    onClick={() => setShowDetails(null)}
+                >
+                    <div
+                        className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="p-6">
+                            {/* Drag indicator */}
+                            <div className="w-12 h-1 bg-gray-300 rounded-full mx-auto mb-6"></div>
+
+                            {/* Header */}
+                            <div className="flex items-center justify-between mb-6">
+                                <h3 className="text-xl font-bold text-gray-900">Transaction Details</h3>
+                                <button
+                                    onClick={() => setShowDetails(null)}
+                                    className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                                >
+                                    <FiX className="w-5 h-5 text-gray-500" />
+                                </button>
+                            </div>
+
+                            {/* Amount - Large Display */}
+                            <div className="text-center mb-6 p-6 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl">
+                                <p className="text-sm text-gray-600 mb-2">Amount</p>
+                                <p className={`text-4xl font-bold ${showDetails.category_type === 'expense' ? 'text-red-600' : 'text-green-600'}`}>
+                                    {showDetails.category_type === 'expense' ? '-' : '+'}{formatCurrency(Math.abs(showDetails.amount))}
+                                </p>
+                            </div>
+
+                            {/* Details Grid */}
+                            <div className="space-y-4">
+                                {/* Description */}
+                                <div>
+                                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Description</p>
+                                    <p className="text-base text-gray-900">
+                                        {showDetails.description ? decodeHtmlEntities(showDetails.description) : 'No description'}
+                                    </p>
+                                </div>
+
+                                {/* Category */}
+                                <div>
+                                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Category</p>
+                                    <div className="flex items-center gap-2">
+                                        <span className={`inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium ${
+                                            showDetails.category_type === 'income'
+                                                ? 'bg-green-100 text-green-700'
+                                                : 'bg-red-100 text-red-700'
+                                        }`}>
+                                            {decodeHtmlEntities(showDetails.category)}
+                                        </span>
+                                        <span className={`text-xs px-2 py-1 rounded-full ${
+                                            showDetails.category_type === 'income'
+                                                ? 'bg-green-50 text-green-600'
+                                                : 'bg-red-50 text-red-600'
+                                        }`}>
+                                            {showDetails.category_type === 'income' ? 'Income' : 'Expense'}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Date */}
+                                <div>
+                                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Date</p>
+                                    <div className="flex items-center gap-2 text-gray-900">
+                                        <FiCalendar className="w-4 h-4 text-gray-400" />
+                                        <span className="text-base">{formatCalendarDate(showDetails.date)}</span>
+                                    </div>
+                                </div>
+
+                                {/* Created At */}
+                                <div>
+                                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Created</p>
+                                    <div className="flex items-center gap-2 text-gray-600 text-sm">
+                                        <span>{format(parseISO(showDetails.created_at), 'MMM dd, yyyy \'at\' h:mm a')}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Close Button */}
+                            <button
+                                onClick={() => setShowDetails(null)}
+                                className="w-full mt-6 px-4 py-3 bg-gray-100 hover:bg-gray-200 rounded-xl font-semibold text-gray-700 transition-colors"
+                            >
+                                Close
+                            </button>
                         </div>
                     </div>
                 </div>
