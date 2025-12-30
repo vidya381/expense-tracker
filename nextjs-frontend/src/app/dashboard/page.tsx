@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { FiDollarSign, FiTrendingUp, FiRepeat, FiPlus, FiArrowUp, FiCalendar, FiEdit2, FiTrash2, FiAlertTriangle, FiX, FiBell } from 'react-icons/fi';
+import { FiDollarSign, FiTrendingUp, FiRepeat, FiPlus, FiArrowUp, FiCalendar, FiEdit2, FiTrash2, FiAlertTriangle, FiX, FiBell, FiLogOut } from 'react-icons/fi';
 import { useAuth } from '../../context/AuthContext';
 import { format, parseISO, subMonths } from 'date-fns';
 import TransactionForm from '../../components/TransactionForm';
@@ -699,11 +699,11 @@ export default function Dashboard() {
                             </button>
                             <button
                                 onClick={logout}
-                                className="px-3 sm:px-4 py-2 text-sm font-medium text-gray-700 hover:text-indigo-600 transition-colors duration-200"
+                                className="flex items-center gap-2 px-3 sm:px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 rounded-lg shadow-sm transition-all duration-200 sm:bg-none sm:from-transparent sm:to-transparent sm:text-gray-700 sm:hover:text-indigo-600 sm:shadow-none"
                                 aria-label="Logout"
                             >
+                                <FiLogOut className="w-4 h-4" />
                                 <span className="hidden sm:inline">Logout</span>
-                                <span className="sm:hidden">Exit</span>
                             </button>
                         </div>
                     </div>
