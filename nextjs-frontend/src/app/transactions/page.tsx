@@ -445,10 +445,12 @@ export default function TransactionsPage() {
                                             {/* Mobile Layout with Long Press */}
                                             <div className="sm:hidden">
                                                 <div
-                                                    className="px-2 py-1.5 active:bg-gray-100 transition-colors"
+                                                    className="px-2 py-1.5 active:bg-gray-100 transition-colors select-none"
+                                                    style={{ WebkitUserSelect: 'none', userSelect: 'none', WebkitTouchCallout: 'none' }}
                                                     onTouchStart={() => handleTouchStart(tx.id)}
                                                     onTouchEnd={handleTouchEnd}
                                                     onTouchMove={handleTouchMove}
+                                                    onContextMenu={(e) => e.preventDefault()}
                                                 >
                                                     <div className="flex items-start justify-between gap-2">
                                                         <div className="flex-1 min-w-0">
@@ -703,6 +705,7 @@ export default function TransactionsPage() {
                             <TransactionForm
                                 token={token || ''}
                                 categories={categories}
+                                setCategories={setCategories}
                                 onSuccess={() => {
                                     setShowTransactionModal(false);
                                     setEditingTransaction(null);
