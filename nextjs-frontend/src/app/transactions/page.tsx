@@ -187,7 +187,7 @@ export default function TransactionsPage() {
             filtered = filtered.filter(t => t.date >= start && t.date <= end);
         }
 
-        // Apply comprehensive search (description, category, amount, date)
+        // Apply comprehensive search (description, category, amount)
         if (searchQuery) {
             const query = searchQuery.toLowerCase();
             filtered = filtered.filter(t => {
@@ -197,17 +197,8 @@ export default function TransactionsPage() {
                 const categoryMatch = t.category?.toLowerCase().includes(query) ?? false;
                 // Search in amount (e.g., "50" finds $50.00, $150.00, etc.)
                 const amountMatch = t.amount?.toString().includes(query) ?? false;
-                // Search in date (e.g., "2024-12" finds December 2024, "jan" finds January)
-                let dateMatch = t.date?.includes(query) ?? false;
-                if (!dateMatch && t.date) {
-                    try {
-                        dateMatch = formatCalendarDate(t.date).toLowerCase().includes(query);
-                    } catch (e) {
-                        dateMatch = false;
-                    }
-                }
 
-                return descriptionMatch || categoryMatch || amountMatch || dateMatch;
+                return descriptionMatch || categoryMatch || amountMatch;
             });
         }
 
