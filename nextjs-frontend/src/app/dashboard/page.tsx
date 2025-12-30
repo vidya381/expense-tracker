@@ -942,44 +942,18 @@ export default function Dashboard() {
 
                 {/* 4. Transaction History */}
                 <section className="bg-white/80 backdrop-blur-sm shadow-xl rounded-2xl p-6 border border-white/20">
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
-                        <div>
-                            <h2 className="text-xl font-bold text-gray-900 mb-1">Transaction History</h2>
-                            <p className="text-sm text-gray-600">{transactions.length} transaction{transactions.length !== 1 ? 's' : ''} found</p>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
-                            {/* Jump to Date */}
-                            <div className="relative flex-1 sm:flex-initial sm:w-36">
-                                <input
-                                    type="date"
-                                    value={jumpToDate}
-                                    onChange={e => setJumpToDate(e.target.value)}
-                                    onKeyDown={e => {
-                                        if (e.key === 'Enter' && jumpToDate) {
-                                            handleJumpToDate();
-                                        }
-                                    }}
-                                    className="w-full py-2.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white text-gray-900 text-sm"
-                                    style={{ paddingLeft: '4px', paddingRight: jumpToDate ? '22px' : '4px' }}
-                                    placeholder="Jump to date"
-                                />
-                                {jumpToDate && (
-                                    <button
-                                        onClick={handleJumpToDate}
-                                        className="absolute inset-y-0 right-1 flex items-center text-indigo-600 hover:text-indigo-800 transition-colors"
-                                        title="Jump to date (or press Enter)"
-                                    >
-                                        <div className="p-1 rounded-md hover:bg-indigo-100 transition-all">
-                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                                            </svg>
-                                        </div>
-                                    </button>
-                                )}
+                    <div className="mb-6">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4">
+                            <div>
+                                <h2 className="text-xl font-bold text-gray-900 mb-1">Transaction History</h2>
+                                <p className="text-sm text-gray-600">{transactions.length} transaction{transactions.length !== 1 ? 's' : ''} found</p>
                             </div>
+                        </div>
 
+                        {/* Search & Filter Controls - Improved Layout */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                             {/* Category Filter */}
-                            <div className="relative flex-1 sm:flex-initial">
+                            <div className="relative sm:col-span-2 lg:col-span-1">
                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                     <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -990,38 +964,77 @@ export default function Dashboard() {
                                     placeholder="Filter by category"
                                     value={filterCategory}
                                     onChange={e => setFilterCategory(e.target.value)}
-                                    className="w-full sm:w-52 pl-10 pr-4 py-2.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white text-gray-900 placeholder:text-gray-400"
+                                    className="w-full pl-10 pr-4 py-2.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white text-gray-900 placeholder:text-gray-400"
                                 />
+                            </div>
+
+                            {/* Jump to Date */}
+                            <div className="relative">
+                                <input
+                                    type="date"
+                                    value={jumpToDate}
+                                    onChange={e => setJumpToDate(e.target.value)}
+                                    onKeyDown={e => {
+                                        if (e.key === 'Enter' && jumpToDate) {
+                                            handleJumpToDate();
+                                        }
+                                    }}
+                                    className="w-full px-3 py-2.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white text-gray-900 text-sm"
+                                    placeholder="Jump to date"
+                                />
+                                {jumpToDate && (
+                                    <button
+                                        onClick={handleJumpToDate}
+                                        className="absolute inset-y-0 right-2 flex items-center text-indigo-600 hover:text-indigo-800 transition-colors"
+                                        title="Jump to date (or press Enter)"
+                                    >
+                                        <div className="p-1 rounded-md hover:bg-indigo-100 transition-all">
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                                            </svg>
+                                        </div>
+                                    </button>
+                                )}
                             </div>
 
                             {/* Amount Range Filter */}
-                            <div className="flex items-center gap-2 flex-1 sm:flex-initial">
+                            <div className="relative">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <span className="text-gray-400 text-sm font-medium">$</span>
+                                </div>
                                 <input
                                     type="number"
-                                    placeholder="Min $"
+                                    placeholder="Min amount"
                                     value={minAmount}
                                     onChange={e => setMinAmount(e.target.value)}
-                                    className="w-full sm:w-24 px-3 py-2.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white text-gray-900 placeholder:text-gray-400 text-sm"
-                                    step="0.01"
-                                    min="0"
-                                />
-                                <span className="text-gray-400">-</span>
-                                <input
-                                    type="number"
-                                    placeholder="Max $"
-                                    value={maxAmount}
-                                    onChange={e => setMaxAmount(e.target.value)}
-                                    className="w-full sm:w-24 px-3 py-2.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white text-gray-900 placeholder:text-gray-400 text-sm"
+                                    className="w-full pl-8 pr-3 py-2.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white text-gray-900 placeholder:text-gray-400 text-sm"
                                     step="0.01"
                                     min="0"
                                 />
                             </div>
 
-                            {/* Sort Order */}
+                            <div className="relative">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <span className="text-gray-400 text-sm font-medium">$</span>
+                                </div>
+                                <input
+                                    type="number"
+                                    placeholder="Max amount"
+                                    value={maxAmount}
+                                    onChange={e => setMaxAmount(e.target.value)}
+                                    className="w-full pl-8 pr-3 py-2.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white text-gray-900 placeholder:text-gray-400 text-sm"
+                                    step="0.01"
+                                    min="0"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Sort Order - Separate Row */}
+                        <div className="mt-3 flex justify-end">
                             <select
                                 value={sortOrder}
                                 onChange={e => setSortOrder(e.target.value as 'date_desc' | 'date_asc')}
-                                className="px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white text-gray-900 font-medium text-sm"
+                                className="px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white text-gray-900 font-medium text-sm"
                             >
                                 <option value="date_desc">Newest First</option>
                                 <option value="date_asc">Oldest First</option>
