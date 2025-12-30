@@ -49,6 +49,14 @@ export default function RecurringTransactionsPage() {
     const [deleteConfirm, setDeleteConfirm] = useState<RecurringTransaction | null>(null);
     const [deleting, setDeleting] = useState(false);
 
+    // Touch interaction state
+    const [showActionMenu, setShowActionMenu] = useState<number | null>(null);
+    const [showDetails, setShowDetails] = useState<RecurringTransaction | null>(null);
+    const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+    const isLongPress = useRef<boolean>(false);
+    const touchStartPos = useRef<{ x: number; y: number } | null>(null);
+    const hasMoved = useRef<boolean>(false);
+
     // Form fields
     const [categoryInput, setCategoryInput] = useState('');
     const [categoryId, setCategoryId] = useState<number | null>(null);
@@ -167,6 +175,67 @@ export default function RecurringTransactionsPage() {
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
+
+    // Prevent background scroll when modals are open
+    useEffect(() => {
+        if (showDetails || showActionMenu || showModal || deleteConfirm) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = 'unset';
+        }
+        return () => {
+            document.body.style.overflow = 'unset';
+        };
+    }, [showDetails, showActionMenu, showModal, deleteConfirm]);
+
+    // Touch handlers for tap and long press
+    const handleTouchStart = (e: React.TouchEvent, rec: RecurringTransaction) => {
+        isLongPress.current = false;
+        hasMoved.current = false;
+        touchStartPos.current = {
+            x: e.touches[0].clientX,
+            y: e.touches[0].clientY
+        };
+
+        longPressTimer.current = setTimeout(() => {
+            isLongPress.current = true;
+            setShowActionMenu(rec.id);
+            if (navigator.vibrate) {
+                navigator.vibrate(50);
+            }
+        }, 500);
+    };
+
+    const handleTouchEnd = (rec: RecurringTransaction) => {
+        if (longPressTimer.current) {
+            clearTimeout(longPressTimer.current);
+            longPressTimer.current = null;
+        }
+
+        if (!isLongPress.current && !hasMoved.current) {
+            setShowDetails(rec);
+        }
+
+        isLongPress.current = false;
+        hasMoved.current = false;
+        touchStartPos.current = null;
+    };
+
+    const handleTouchMove = (e: React.TouchEvent) => {
+        if (touchStartPos.current) {
+            const deltaX = Math.abs(e.touches[0].clientX - touchStartPos.current.x);
+            const deltaY = Math.abs(e.touches[0].clientY - touchStartPos.current.y);
+
+            if (deltaX > 10 || deltaY > 10) {
+                hasMoved.current = true;
+            }
+        }
+
+        if (longPressTimer.current) {
+            clearTimeout(longPressTimer.current);
+            longPressTimer.current = null;
+        }
+    };
 
     const handleCategorySelect = (category: Category) => {
         setCategoryInput(category.name);
@@ -364,7 +433,7 @@ export default function RecurringTransactionsPage() {
                         </button>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                         {recurring.map((rec) => {
                             const category = categories.find(c => c.id === rec.category_id);
                             const isIncome = category?.type === 'income';
@@ -381,58 +450,94 @@ export default function RecurringTransactionsPage() {
                             return (
                                 <div
                                     key={rec.id}
-                                    className={`group bg-gradient-to-br ${config.bg} p-5 rounded-xl border-2 ${config.border} shadow-md hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1`}
+                                    className={`group bg-gradient-to-br ${config.bg} rounded-xl border-2 ${config.border} shadow-md hover:shadow-xl transition-all duration-200 sm:transform sm:hover:-translate-y-1 select-none`}
+                                    style={{ WebkitUserSelect: 'none', userSelect: 'none', WebkitTouchCallout: 'none' }}
+                                    onTouchStart={(e) => handleTouchStart(e, rec)}
+                                    onTouchEnd={() => handleTouchEnd(rec)}
+                                    onTouchMove={handleTouchMove}
+                                    onContextMenu={(e) => e.preventDefault()}
                                 >
-                                    <div className="flex items-start justify-between mb-4">
-                                        <div className="flex-1">
-                                            <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">
-                                                {rec.description || 'No description'}
-                                            </h3>
-                                            <div className="flex items-center gap-2 mb-2">
-                                                <span className={`text-xs px-2 py-1 bg-white rounded-full ${config.text} font-semibold capitalize`}>
-                                                    {config.icon} {rec.recurrence}
-                                                </span>
-                                                <span className={`text-xs px-2 py-1 bg-white rounded-full font-semibold ${
-                                                    isIncome ? 'text-emerald-700' : 'text-gray-700'
-                                                }`}>
-                                                    {category?.name || 'Unknown'}
-                                                </span>
+                                    {/* Mobile Compact Layout */}
+                                    <div className="sm:hidden p-3">
+                                        <div className="flex items-start justify-between gap-2 mb-2">
+                                            <div className="flex-1 min-w-0">
+                                                <h3 className="text-sm font-semibold text-gray-900 mb-1.5 line-clamp-1">
+                                                    {rec.description || 'No description'}
+                                                </h3>
+                                                <div className="flex items-center gap-1.5 flex-wrap">
+                                                    <span className={`text-[10px] px-1.5 py-0.5 bg-white rounded-full ${config.text} font-semibold capitalize`}>
+                                                        {config.icon} {rec.recurrence}
+                                                    </span>
+                                                    <span className={`text-[10px] px-1.5 py-0.5 bg-white rounded-full font-semibold ${
+                                                        isIncome ? 'text-emerald-700' : 'text-gray-700'
+                                                    }`}>
+                                                        {category?.name || 'Unknown'}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div className={`p-1.5 rounded-lg bg-gradient-to-br ${config.gradient} shadow-lg flex-shrink-0`}>
+                                                <FiRepeat className="w-4 h-4 text-white" />
                                             </div>
                                         </div>
-                                        <div className={`p-2 rounded-lg bg-gradient-to-br ${config.gradient} shadow-lg flex-shrink-0 group-hover:scale-110 transition-transform duration-200`}>
-                                            <FiRepeat className="w-5 h-5 text-white" />
-                                        </div>
-                                    </div>
 
-                                    <div className="mb-4">
-                                        <p className={`text-3xl font-bold ${isIncome ? 'text-emerald-600' : 'text-gray-900'}`}>
+                                        <p className={`text-xl font-bold ${isIncome ? 'text-emerald-600' : 'text-gray-900'}`}>
                                             {isIncome && '+'}{!isIncome && ''}${rec.amount.toFixed(2)}
                                         </p>
-                                        <p className="text-xs text-gray-600 mt-1">
-                                            {isIncome ? '💰 Income' : '💳 Expense'}
-                                        </p>
                                     </div>
 
-                                    <div className="flex items-center justify-between pt-3 border-t border-gray-200">
-                                        <div className="flex items-center gap-2 text-xs text-gray-600">
-                                            <FiCalendar className="w-4 h-4" />
-                                            <span>Starts {formatCalendarDate(rec.start_date)}</span>
+                                    {/* Desktop Layout */}
+                                    <div className="hidden sm:block p-5">
+                                        <div className="flex items-start justify-between mb-4">
+                                            <div className="flex-1">
+                                                <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">
+                                                    {rec.description || 'No description'}
+                                                </h3>
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <span className={`text-xs px-2 py-1 bg-white rounded-full ${config.text} font-semibold capitalize`}>
+                                                        {config.icon} {rec.recurrence}
+                                                    </span>
+                                                    <span className={`text-xs px-2 py-1 bg-white rounded-full font-semibold ${
+                                                        isIncome ? 'text-emerald-700' : 'text-gray-700'
+                                                    }`}>
+                                                        {category?.name || 'Unknown'}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div className={`p-2 rounded-lg bg-gradient-to-br ${config.gradient} shadow-lg flex-shrink-0 group-hover:scale-110 transition-transform duration-200`}>
+                                                <FiRepeat className="w-5 h-5 text-white" />
+                                            </div>
                                         </div>
-                                        <div className="flex gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                                            <button
-                                                onClick={() => handleEdit(rec)}
-                                                className="p-1.5 bg-white hover:bg-gray-50 rounded-lg transition-colors shadow-sm"
-                                                title="Edit"
-                                            >
-                                                <FiEdit2 className="w-4 h-4 text-gray-600" />
-                                            </button>
-                                            <button
-                                                onClick={() => setDeleteConfirm(rec)}
-                                                className="p-1.5 bg-white hover:bg-gray-50 rounded-lg transition-colors shadow-sm"
-                                                title="Delete"
-                                            >
-                                                <FiTrash2 className="w-4 h-4 text-rose-600" />
-                                            </button>
+
+                                        <div className="mb-4">
+                                            <p className={`text-3xl font-bold ${isIncome ? 'text-emerald-600' : 'text-gray-900'}`}>
+                                                {isIncome && '+'}{!isIncome && ''}${rec.amount.toFixed(2)}
+                                            </p>
+                                            <p className="text-xs text-gray-600 mt-1">
+                                                {isIncome ? '💰 Income' : '💳 Expense'}
+                                            </p>
+                                        </div>
+
+                                        <div className="flex items-center justify-between pt-3 border-t border-gray-200">
+                                            <div className="flex items-center gap-2 text-xs text-gray-600">
+                                                <FiCalendar className="w-4 h-4" />
+                                                <span>Starts {formatCalendarDate(rec.start_date)}</span>
+                                            </div>
+                                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button
+                                                    onClick={() => handleEdit(rec)}
+                                                    className="p-1.5 bg-white hover:bg-gray-50 rounded-lg transition-colors shadow-sm"
+                                                    title="Edit"
+                                                >
+                                                    <FiEdit2 className="w-4 h-4 text-gray-600" />
+                                                </button>
+                                                <button
+                                                    onClick={() => setDeleteConfirm(rec)}
+                                                    className="p-1.5 bg-white hover:bg-gray-50 rounded-lg transition-colors shadow-sm"
+                                                    title="Delete"
+                                                >
+                                                    <FiTrash2 className="w-4 h-4 text-rose-600" />
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -653,6 +758,163 @@ export default function RecurringTransactionsPage() {
                     </div>
                 </div>
             )}
+
+            {/* Action Menu Bottom Sheet - Mobile Only */}
+            {showActionMenu && (
+                <div
+                    className="fixed inset-0 bg-black/50 z-50 sm:hidden"
+                    onClick={() => setShowActionMenu(null)}
+                >
+                    <div
+                        className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="p-4">
+                            <div className="space-y-2">
+                                <button
+                                    onClick={() => {
+                                        const rec = recurring.find(r => r.id === showActionMenu);
+                                        if (rec) handleEdit(rec);
+                                        setShowActionMenu(null);
+                                    }}
+                                    className="w-full flex items-center gap-3 px-4 py-4 text-left hover:bg-gray-50 rounded-xl transition-colors"
+                                >
+                                    <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center">
+                                        <FiEdit2 className="w-5 h-5 text-indigo-600" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="font-semibold text-gray-900">Edit Recurring</p>
+                                        <p className="text-xs text-gray-500">Modify recurring details</p>
+                                    </div>
+                                </button>
+
+                                <button
+                                    onClick={() => {
+                                        const rec = recurring.find(r => r.id === showActionMenu);
+                                        if (rec) {
+                                            setDeleteConfirm(rec);
+                                            setShowActionMenu(null);
+                                        }
+                                    }}
+                                    className="w-full flex items-center gap-3 px-4 py-4 text-left hover:bg-red-50 rounded-xl transition-colors"
+                                >
+                                    <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                                        <FiTrash2 className="w-5 h-5 text-red-600" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="font-semibold text-red-900">Delete Recurring</p>
+                                        <p className="text-xs text-red-500">Remove permanently</p>
+                                    </div>
+                                </button>
+
+                                <button
+                                    onClick={() => setShowActionMenu(null)}
+                                    className="w-full px-4 py-3 mt-2 text-center font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Details Modal - Mobile Only */}
+            {showDetails && (() => {
+                const category = categories.find(c => c.id === showDetails.category_id);
+                const isIncome = category?.type === 'income';
+                const frequencyConfig = {
+                    daily: { icon: '📅', color: 'slate' },
+                    weekly: { icon: '📆', color: 'cyan' },
+                    monthly: { icon: '🗓️', color: 'indigo' },
+                    yearly: { icon: '📊', color: 'amber' }
+                };
+                const config = frequencyConfig[showDetails.recurrence as keyof typeof frequencyConfig] || frequencyConfig.monthly;
+
+                return (
+                    <div
+                        className="fixed inset-0 bg-black/50 z-50 sm:hidden"
+                        onClick={() => setShowDetails(null)}
+                    >
+                        <div
+                            className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="p-6">
+                                {/* Header */}
+                                <div className="mb-6">
+                                    <h3 className="text-xl font-bold text-gray-900">Recurring Details</h3>
+                                </div>
+
+                                {/* Amount Display */}
+                                <div className="text-center mb-6 p-6 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl">
+                                    <p className="text-sm text-gray-600 mb-2">Amount</p>
+                                    <p className={`text-4xl font-bold ${isIncome ? 'text-emerald-600' : 'text-gray-900'}`}>
+                                        {isIncome && '+'}{!isIncome && ''}${showDetails.amount.toFixed(2)}
+                                    </p>
+                                </div>
+
+                                {/* Details */}
+                                <div className="space-y-4">
+                                    <div>
+                                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Description</p>
+                                        <p className="text-base text-gray-900">
+                                            {showDetails.description || 'No description'}
+                                        </p>
+                                    </div>
+
+                                    <div>
+                                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Category</p>
+                                        <div className="flex items-center gap-2">
+                                            <span className={`inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium ${
+                                                isIncome ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
+                                            }`}>
+                                                {category?.name || 'Unknown'}
+                                            </span>
+                                            <span className={`text-xs px-2 py-1 rounded-full ${
+                                                isIncome ? 'bg-green-50 text-green-600' : 'bg-gray-50 text-gray-600'
+                                            }`}>
+                                                {isIncome ? 'Income' : 'Expense'}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Frequency</p>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-2xl">{config.icon}</span>
+                                            <span className="text-base text-gray-900 capitalize font-medium">{showDetails.recurrence}</span>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Start Date</p>
+                                        <div className="flex items-center gap-2 text-gray-900">
+                                            <FiCalendar className="w-4 h-4 text-gray-400" />
+                                            <span className="text-base">{formatCalendarDate(showDetails.start_date)}</span>
+                                        </div>
+                                    </div>
+
+                                    {showDetails.last_occurrence && (
+                                        <div>
+                                            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Last Occurrence</p>
+                                            <span className="text-sm text-gray-600">{formatCalendarDate(showDetails.last_occurrence)}</span>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Close Button */}
+                                <button
+                                    onClick={() => setShowDetails(null)}
+                                    className="w-full mt-6 px-4 py-3 bg-gray-100 hover:bg-gray-200 rounded-xl font-semibold text-gray-700 transition-colors"
+                                >
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
 
             {/* Delete Confirmation Modal */}
             {deleteConfirm && (
