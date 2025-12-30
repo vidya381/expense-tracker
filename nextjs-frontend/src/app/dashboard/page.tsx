@@ -45,36 +45,6 @@ function decodeHtmlEntities(text: string): string {
     return doc.documentElement.textContent || text;
 }
 
-// Mini sparkline component for trend visualization
-const MiniSparkline = ({ data, color }: { data: number[]; color: string }) => {
-    if (data.length < 2) return null;
-
-    const max = Math.max(...data);
-    const min = Math.min(...data);
-    const range = max - min || 1;
-    const width = 60;
-    const height = 20;
-
-    const points = data.map((value, index) => {
-        const x = (index / (data.length - 1)) * width;
-        const y = height - ((value - min) / range) * height;
-        return `${x},${y}`;
-    }).join(' ');
-
-    return (
-        <svg width={width} height={height} className="opacity-60">
-            <polyline
-                points={points}
-                fill="none"
-                stroke={color}
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-            />
-        </svg>
-    );
-};
-
 interface SummaryData {
     total_expenses: number;
     total_income: number;
@@ -261,7 +231,7 @@ export default function Dashboard() {
                     recurring_expenses: summaryJson.monthly_recurring || 0
                 });
 
-                // 2. Fetch monthly history for trend lines
+                // 2. Fetch monthly history for historical modal
                 const historyRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/summary/monthly`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
@@ -295,8 +265,6 @@ export default function Dashboard() {
                         income: m.total_income || 0,
                         recurring: normalizedRecurring
                     }));
-                    console.log('Monthly History for Sparklines:', history);
-                    console.log('Sparkline will show:', history.length >= 2 ? 'YES' : 'NO - Need at least 2 months of data');
                     setMonthlyHistory(history);
                 }
 
@@ -844,8 +812,6 @@ export default function Dashboard() {
                             gradient="from-red-500 to-pink-500"
                             bgGradient="from-red-50 to-pink-50"
                             onClick={() => openHistoricalModal('expenses')}
-                            sparklineData={monthlyHistory.map(m => m.expenses).reverse()}
-                            sparklineColor="#ef4444"
                         />
                         <Card
                             icon={<FiDollarSign size={32} />}
@@ -854,8 +820,6 @@ export default function Dashboard() {
                             gradient="from-green-500 to-emerald-500"
                             bgGradient="from-green-50 to-emerald-50"
                             onClick={() => openHistoricalModal('income')}
-                            sparklineData={monthlyHistory.map(m => m.income).reverse()}
-                            sparklineColor="#10b981"
                         />
                         <Card
                             icon={<FiRepeat size={32} />}
@@ -864,8 +828,6 @@ export default function Dashboard() {
                             gradient="from-orange-500 to-amber-500"
                             bgGradient="from-orange-50 to-amber-50"
                             onClick={() => openHistoricalModal('recurring')}
-                            sparklineData={monthlyHistory.map(m => m.recurring).reverse()}
-                            sparklineColor="#f59e0b"
                         />
                     </div>
 
@@ -889,8 +851,6 @@ export default function Dashboard() {
                                         gradient="from-red-500 to-pink-500"
                                         bgGradient="from-red-50 to-pink-50"
                                         onClick={() => openHistoricalModal('expenses')}
-                                        sparklineData={monthlyHistory.map(m => m.expenses).reverse()}
-                                        sparklineColor="#ef4444"
                                     />
                                 </div>
                                 <div className="w-full flex-shrink-0 px-1">
@@ -901,8 +861,6 @@ export default function Dashboard() {
                                         gradient="from-green-500 to-emerald-500"
                                         bgGradient="from-green-50 to-emerald-50"
                                         onClick={() => openHistoricalModal('income')}
-                                        sparklineData={monthlyHistory.map(m => m.income).reverse()}
-                                        sparklineColor="#10b981"
                                     />
                                 </div>
                                 <div className="w-full flex-shrink-0 px-1">
@@ -913,8 +871,6 @@ export default function Dashboard() {
                                         gradient="from-orange-500 to-amber-500"
                                         bgGradient="from-orange-50 to-amber-50"
                                         onClick={() => openHistoricalModal('recurring')}
-                                        sparklineData={monthlyHistory.map(m => m.recurring).reverse()}
-                                        sparklineColor="#f59e0b"
                                     />
                                 </div>
                             </div>
@@ -1752,15 +1708,13 @@ export default function Dashboard() {
     );
 }
 
-function Card({ icon, label, value, gradient, bgGradient, onClick, sparklineData, sparklineColor }: {
+function Card({ icon, label, value, gradient, bgGradient, onClick }: {
     icon: React.ReactNode;
     label: string;
     value: string;
     gradient: string;
     bgGradient: string;
     onClick?: () => void;
-    sparklineData?: number[];
-    sparklineColor?: string;
 }) {
     const CardContent = (
         <>
@@ -1768,9 +1722,6 @@ function Card({ icon, label, value, gradient, bgGradient, onClick, sparklineData
                 <div className={`p-3 rounded-xl bg-gradient-to-br ${gradient} shadow-lg`}>
                     <div className="text-white">{icon}</div>
                 </div>
-                {sparklineData && sparklineData.length >= 2 && sparklineColor && (
-                    <MiniSparkline data={sparklineData} color={sparklineColor} />
-                )}
             </div>
             <div>
                 <p className="text-3xl font-bold text-gray-900 mb-1">{value}</p>
