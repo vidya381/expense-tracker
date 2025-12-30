@@ -124,14 +124,21 @@ func main() {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
+	// Get port from environment (Render/Railway/etc. provide PORT)
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080" // Default for local development
+	}
+	serverAddr := "0.0.0.0:" + port
+
 	// Start server in a goroutine
 	server := &http.Server{
-		Addr:    constants.DefaultServerPort,
+		Addr:    serverAddr,
 		Handler: corsHandler.Handler(mux),
 	}
 
 	go func() {
-		slog.Info("Server starting", "address", fmt.Sprintf("http://localhost%s", constants.DefaultServerPort))
+		slog.Info("Server starting", "address", serverAddr, "port", port)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			slog.Error("Server error", "error", err)
 			os.Exit(1)
