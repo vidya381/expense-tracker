@@ -54,6 +54,8 @@ export default function TransactionsPage() {
     const [showActionMenu, setShowActionMenu] = useState<number | null>(null);
     const longPressTimer = useRef<NodeJS.Timeout | null>(null);
     const isLongPress = useRef<boolean>(false);
+    const touchStartPos = useRef<{ x: number; y: number } | null>(null);
+    const hasMoved = useRef<boolean>(false);
 
     // Details view state
     const [showDetails, setShowDetails] = useState<Transaction | null>(null);
@@ -271,8 +273,14 @@ export default function TransactionsPage() {
     };
 
     // Touch handlers for tap and long press
-    const handleTouchStart = (transaction: Transaction) => {
+    const handleTouchStart = (e: React.TouchEvent, transaction: Transaction) => {
         isLongPress.current = false;
+        hasMoved.current = false;
+        touchStartPos.current = {
+            x: e.touches[0].clientX,
+            y: e.touches[0].clientY
+        };
+
         longPressTimer.current = setTimeout(() => {
             isLongPress.current = true;
             setShowActionMenu(transaction.id);
@@ -289,15 +297,27 @@ export default function TransactionsPage() {
             longPressTimer.current = null;
         }
 
-        // If it wasn't a long press, treat as single tap
-        if (!isLongPress.current) {
+        // Only open details if it wasn't a long press AND user didn't move (scroll)
+        if (!isLongPress.current && !hasMoved.current) {
             setShowDetails(transaction);
         }
 
         isLongPress.current = false;
+        hasMoved.current = false;
+        touchStartPos.current = null;
     };
 
-    const handleTouchMove = () => {
+    const handleTouchMove = (e: React.TouchEvent) => {
+        // Check if user moved significantly (more than 10px in any direction)
+        if (touchStartPos.current) {
+            const deltaX = Math.abs(e.touches[0].clientX - touchStartPos.current.x);
+            const deltaY = Math.abs(e.touches[0].clientY - touchStartPos.current.y);
+
+            if (deltaX > 10 || deltaY > 10) {
+                hasMoved.current = true;
+            }
+        }
+
         // Cancel long press if user moves finger (scrolling)
         if (longPressTimer.current) {
             clearTimeout(longPressTimer.current);
@@ -472,9 +492,9 @@ export default function TransactionsPage() {
                                                 <div
                                                     className="px-2 py-1.5 active:bg-gray-100 transition-colors select-none"
                                                     style={{ WebkitUserSelect: 'none', userSelect: 'none', WebkitTouchCallout: 'none' }}
-                                                    onTouchStart={() => handleTouchStart(tx)}
+                                                    onTouchStart={(e) => handleTouchStart(e, tx)}
                                                     onTouchEnd={() => handleTouchEnd(tx)}
-                                                    onTouchMove={handleTouchMove}
+                                                    onTouchMove={(e) => handleTouchMove(e)}
                                                     onContextMenu={(e) => e.preventDefault()}
                                                 >
                                                     <div className="flex items-start justify-between gap-2">
