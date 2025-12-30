@@ -137,6 +137,7 @@ export default function Dashboard() {
     const [error, setError] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [showAllCategories, setShowAllCategories] = useState(false);
+    const [comparisonSlider, setComparisonSlider] = useState(50); // 0-100, controls split view
 
     // Filters, sorting & pagination
     const [page, setPage] = useState(1);
@@ -998,164 +999,139 @@ export default function Dashboard() {
                         </div>
                     ) : (
                         (() => {
-                            const totalSpending = spendingData.reduce((sum, item) => sum + item.amount, 0);
-                            const top3 = [...spendingData].sort((a, b) => b.amount - a.amount).slice(0, 3);
-                            const restCategories = [...spendingData].sort((a, b) => b.amount - a.amount).slice(3);
+                            const currentTotal = spendingData.reduce((sum, item) => sum + item.amount, 0);
+                            const prevTotal = previousMonthSpending.reduce((sum, item) => sum + item.amount, 0);
+                            const totalChange = currentTotal - prevTotal;
+                            const totalPercentChange = prevTotal > 0 ? ((totalChange / prevTotal) * 100) : 0;
 
-                            // Helper function to get previous month's amount for a category
-                            const getPrevMonthAmount = (category: string) => {
-                                const prevItem = previousMonthSpending.find(item => item.category === category);
-                                return prevItem ? prevItem.amount : 0;
-                            };
+                            // Get all unique categories from both months
+                            const allCategories = Array.from(new Set([
+                                ...spendingData.map(item => item.category),
+                                ...previousMonthSpending.map(item => item.category)
+                            ]));
 
-                            // Helper function to generate smart insights
-                            const getSmartInsight = (category: string, currentAmount: number, prevAmount: number, percentage: number) => {
-                                const change = currentAmount - prevAmount;
-                                const percentChange = prevAmount > 0 ? ((change / prevAmount) * 100) : 0;
-
-                                // Insights based on spending patterns
-                                if (percentChange > 50) {
-                                    return `Spending increased significantly. Consider reviewing recent ${category.toLowerCase()} expenses.`;
-                                } else if (percentChange > 20) {
-                                    return `Spending up ${percentChange.toFixed(0)}% from last month. Keep an eye on this.`;
-                                } else if (percentChange < -20) {
-                                    return `Great job! You've reduced spending by ${Math.abs(percentChange).toFixed(0)}%.`;
-                                } else if (percentage > 40) {
-                                    return `This is ${percentage.toFixed(0)}% of your total spending. Consider if this aligns with your priorities.`;
-                                } else if (percentChange > 0 && percentChange <= 20) {
-                                    return `Spending is stable with a slight increase of ${percentChange.toFixed(0)}%.`;
-                                } else if (Math.abs(percentChange) < 5) {
-                                    return `Spending is consistent with last month. Good budgeting!`;
-                                } else {
-                                    return `You're spending ${formatCurrency(currentAmount)} on ${category.toLowerCase()} this month.`;
-                                }
-                            };
-
-                            const medals = ['🥇', '🥈', '🥉'];
+                            // Sort by current month spending (highest first)
+                            const sortedCategories = allCategories.sort((a, b) => {
+                                const aAmount = spendingData.find(item => item.category === a)?.amount || 0;
+                                const bAmount = spendingData.find(item => item.category === b)?.amount || 0;
+                                return bAmount - aAmount;
+                            });
 
                             return (
                                 <div className="space-y-6">
-                                    {/* Top 3 Categories */}
-                                    <div>
-                                        <h3 className="text-lg font-bold text-gray-900 mb-4">Your Top 3 Spending Categories</h3>
+                                    {/* Summary Card */}
+                                    <div className="bg-gradient-to-r from-indigo-500 to-purple-600 p-6 rounded-2xl text-white shadow-xl">
+                                        <div className="flex items-center justify-between flex-wrap gap-4">
+                                            <div>
+                                                <p className="text-sm opacity-90 mb-1">Total Spending Comparison</p>
+                                                <p className="text-3xl font-bold mb-2">
+                                                    {formatCurrency(currentTotal)} <span className="text-sm opacity-75">this month</span>
+                                                </p>
+                                                <p className="text-sm opacity-90">
+                                                    {formatCurrency(prevTotal)} last month
+                                                </p>
+                                            </div>
+                                            <div className="text-center bg-white/20 rounded-xl p-4 backdrop-blur-sm">
+                                                <p className="text-sm opacity-90 mb-1">Change</p>
+                                                <p className={`text-2xl font-bold flex items-center gap-2 ${
+                                                    totalPercentChange > 0 ? 'text-red-200' : totalPercentChange < 0 ? 'text-green-200' : 'text-white'
+                                                }`}>
+                                                    {totalPercentChange > 0 ? '📈' : totalPercentChange < 0 ? '📉' : '➡️'}
+                                                    {totalPercentChange > 0 ? '+' : ''}{totalPercentChange.toFixed(1)}%
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Interactive Comparison Slider */}
+                                    <div className="bg-white p-6 rounded-2xl border-2 border-gray-200">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <h3 className="text-lg font-bold text-gray-900">Drag to Compare</h3>
+                                            <div className="flex items-center gap-4 text-sm">
+                                                <span className="flex items-center gap-2">
+                                                    <div className="w-3 h-3 bg-indigo-500 rounded-full"></div>
+                                                    This Month
+                                                </span>
+                                                <span className="flex items-center gap-2">
+                                                    <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
+                                                    Last Month
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <input
+                                            type="range"
+                                            min="0"
+                                            max="100"
+                                            value={comparisonSlider}
+                                            onChange={(e) => setComparisonSlider(parseInt(e.target.value))}
+                                            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer mb-6"
+                                            style={{
+                                                background: `linear-gradient(to right, #6366f1 0%, #6366f1 ${comparisonSlider}%, #9ca3af ${comparisonSlider}%, #9ca3af 100%)`
+                                            }}
+                                        />
+
+                                        {/* Category Comparison Bars */}
                                         <div className="space-y-4">
-                                            {top3.map((item, index) => {
-                                                const percentage = totalSpending > 0 ? (item.amount / totalSpending) * 100 : 0;
-                                                const prevAmount = getPrevMonthAmount(item.category);
-                                                const change = item.amount - prevAmount;
+                                            {sortedCategories.map((category) => {
+                                                const currentAmount = spendingData.find(item => item.category === category)?.amount || 0;
+                                                const prevAmount = previousMonthSpending.find(item => item.category === category)?.amount || 0;
+                                                const change = currentAmount - prevAmount;
                                                 const percentChange = prevAmount > 0 ? ((change / prevAmount) * 100) : 0;
 
-                                                const isIncrease = percentChange > 0;
-                                                const isDecrease = percentChange < 0;
-                                                const isSignificantChange = Math.abs(percentChange) >= 5;
-
-                                                const insight = getSmartInsight(item.category, item.amount, prevAmount, percentage);
+                                                const maxAmount = Math.max(currentAmount, prevAmount, 1);
+                                                const currentWidth = (currentAmount / maxAmount) * 100;
+                                                const prevWidth = (prevAmount / maxAmount) * 100;
 
                                                 return (
-                                                    <div
-                                                        key={item.category}
-                                                        className="bg-gradient-to-br from-white to-gray-50 p-6 rounded-2xl border-2 border-gray-200 shadow-md hover:shadow-xl transition-all duration-200"
-                                                    >
-                                                        {/* Header with Medal and Category */}
-                                                        <div className="flex items-start gap-4 mb-4">
-                                                            <div className="text-4xl">{medals[index]}</div>
-                                                            <div className="flex-1">
-                                                                <h4 className="text-xl font-bold text-gray-900 mb-2">{item.category}</h4>
-                                                                <div className="flex items-baseline gap-3 flex-wrap">
-                                                                    <span className="text-3xl font-bold text-indigo-600">
-                                                                        {formatCurrency(item.amount)}
+                                                    <div key={category} className="space-y-2">
+                                                        <div className="flex items-center justify-between">
+                                                            <h4 className="font-semibold text-gray-900">{category}</h4>
+                                                            {Math.abs(percentChange) >= 5 && (
+                                                                <span className={`text-sm font-semibold flex items-center gap-1 ${
+                                                                    percentChange > 0 ? 'text-red-600' : 'text-green-600'
+                                                                }`}>
+                                                                    {percentChange > 0 ? '↑' : '↓'} {Math.abs(percentChange).toFixed(0)}%
+                                                                </span>
+                                                            )}
+                                                        </div>
+
+                                                        <div className="relative h-12">
+                                                            {/* Previous Month Bar (Background) */}
+                                                            <div
+                                                                className="absolute inset-y-0 left-0 bg-gray-200 rounded-lg flex items-center px-3 transition-all duration-300"
+                                                                style={{
+                                                                    width: `${prevWidth}%`,
+                                                                    opacity: comparisonSlider < 50 ? 1 : 0.3
+                                                                }}
+                                                            >
+                                                                {comparisonSlider <= 50 && prevAmount > 0 && (
+                                                                    <span className="text-sm font-semibold text-gray-700">
+                                                                        {formatCurrency(prevAmount)}
                                                                     </span>
-                                                                    {isSignificantChange && (
-                                                                        <span className={`text-sm font-semibold flex items-center gap-1 ${
-                                                                            isIncrease ? 'text-red-600' : 'text-green-600'
-                                                                        }`}>
-                                                                            {isIncrease ? '📈' : '📉'}
-                                                                            {isIncrease ? '+' : ''}{percentChange.toFixed(0)}% vs last month
-                                                                        </span>
-                                                                    )}
-                                                                    {!isSignificantChange && prevAmount > 0 && (
-                                                                        <span className="text-sm font-semibold text-gray-500 flex items-center gap-1">
-                                                                            ➡️ Similar to last month
-                                                                        </span>
-                                                                    )}
-                                                                </div>
+                                                                )}
                                                             </div>
-                                                        </div>
 
-                                                        {/* Stats Row */}
-                                                        <div className="grid grid-cols-2 gap-4 mb-4">
-                                                            <div className="bg-indigo-50 rounded-xl p-3">
-                                                                <p className="text-xs text-gray-600 mb-1">% of Total</p>
-                                                                <p className="text-lg font-bold text-indigo-700">{percentage.toFixed(0)}%</p>
+                                                            {/* Current Month Bar (Foreground) */}
+                                                            <div
+                                                                className="absolute inset-y-0 left-0 bg-indigo-500 rounded-lg flex items-center px-3 transition-all duration-300"
+                                                                style={{
+                                                                    width: `${currentWidth}%`,
+                                                                    opacity: comparisonSlider > 50 ? 1 : 0.3
+                                                                }}
+                                                            >
+                                                                {comparisonSlider >= 50 && currentAmount > 0 && (
+                                                                    <span className="text-sm font-semibold text-white">
+                                                                        {formatCurrency(currentAmount)}
+                                                                    </span>
+                                                                )}
                                                             </div>
-                                                            <div className="bg-gray-100 rounded-xl p-3">
-                                                                <p className="text-xs text-gray-600 mb-1">Last Month</p>
-                                                                <p className="text-lg font-bold text-gray-700">
-                                                                    {prevAmount > 0 ? formatCurrency(prevAmount) : 'N/A'}
-                                                                </p>
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Smart Insight */}
-                                                        <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded-r-lg">
-                                                            <p className="text-sm text-blue-800 flex items-start gap-2">
-                                                                <span className="text-lg">💡</span>
-                                                                <span className="flex-1">{insight}</span>
-                                                            </p>
                                                         </div>
                                                     </div>
                                                 );
                                             })}
                                         </div>
                                     </div>
-
-                                    {/* Other Categories - Collapsible */}
-                                    {restCategories.length > 0 && (
-                                        <div>
-                                            <button
-                                                onClick={() => setShowAllCategories(!showAllCategories)}
-                                                className="flex items-center gap-2 text-indigo-600 hover:text-indigo-700 font-semibold transition-colors mb-4"
-                                            >
-                                                <span className={`transform transition-transform ${showAllCategories ? 'rotate-90' : ''}`}>
-                                                    ▶
-                                                </span>
-                                                View {restCategories.length} More {restCategories.length === 1 ? 'Category' : 'Categories'}
-                                            </button>
-
-                                            {showAllCategories && (
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                                    {restCategories.map((item) => {
-                                                        const percentage = totalSpending > 0 ? (item.amount / totalSpending) * 100 : 0;
-                                                        const prevAmount = getPrevMonthAmount(item.category);
-                                                        const change = item.amount - prevAmount;
-                                                        const percentChange = prevAmount > 0 ? ((change / prevAmount) * 100) : 0;
-
-                                                        return (
-                                                            <div
-                                                                key={item.category}
-                                                                className="bg-white p-4 rounded-xl border border-gray-200 hover:shadow-md transition-all duration-200"
-                                                            >
-                                                                <h5 className="font-semibold text-gray-900 mb-2">{item.category}</h5>
-                                                                <p className="text-2xl font-bold text-gray-800 mb-2">
-                                                                    {formatCurrency(item.amount)}
-                                                                </p>
-                                                                <div className="flex items-center justify-between text-xs">
-                                                                    <span className="text-gray-600">{percentage.toFixed(1)}% of total</span>
-                                                                    {prevAmount > 0 && Math.abs(percentChange) >= 5 && (
-                                                                        <span className={`font-semibold ${
-                                                                            percentChange > 0 ? 'text-red-600' : 'text-green-600'
-                                                                        }`}>
-                                                                            {percentChange > 0 ? '↑' : '↓'} {Math.abs(percentChange).toFixed(0)}%
-                                                                        </span>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
                                 </div>
                             );
                         })()
