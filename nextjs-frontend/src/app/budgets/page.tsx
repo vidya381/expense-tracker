@@ -209,6 +209,14 @@ export default function BudgetsPage() {
             });
 
             const data = await response.json();
+
+            // Handle different response statuses
+            if (response.status === 409) {
+                // Conflict - duplicate budget
+                alert(data.error || 'A budget already exists for this category and period. Please update the existing budget instead of creating a new one.');
+                return;
+            }
+
             if (data.success) {
                 await fetchBudgets();
                 closeModal();
@@ -217,7 +225,7 @@ export default function BudgetsPage() {
             }
         } catch (error) {
             console.error('Failed to save budget:', error);
-            alert('Failed to save budget');
+            alert('An unexpected error occurred. Please try again.');
         } finally {
             setLoadingSubmit(false);
         }
