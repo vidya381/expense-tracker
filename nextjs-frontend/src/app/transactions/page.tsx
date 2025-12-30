@@ -50,10 +50,9 @@ export default function TransactionsPage() {
     const [deleteConfirm, setDeleteConfirm] = useState<Transaction | null>(null);
     const [deleting, setDeleting] = useState(false);
 
-    // Swipe gesture state
-    const [swipedCard, setSwipedCard] = useState<number | null>(null);
-    const [touchStart, setTouchStart] = useState<number | null>(null);
-    const [touchCurrent, setTouchCurrent] = useState<number | null>(null);
+    // Long press state
+    const [showActionMenu, setShowActionMenu] = useState<number | null>(null);
+    const longPressTimer = useRef<NodeJS.Timeout | null>(null);
 
     const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -255,51 +254,30 @@ export default function TransactionsPage() {
         }
     };
 
-    // Swipe gesture handlers
-    const handleTouchStart = (e: React.TouchEvent, transactionId: number) => {
-        setTouchStart(e.touches[0].clientX);
-        setSwipedCard(transactionId);
+    // Long press handlers
+    const handleTouchStart = (transactionId: number) => {
+        longPressTimer.current = setTimeout(() => {
+            setShowActionMenu(transactionId);
+            // Haptic feedback if available
+            if (navigator.vibrate) {
+                navigator.vibrate(50);
+            }
+        }, 500); // 500ms long press
     };
 
-    const handleTouchMove = (e: React.TouchEvent) => {
-        if (touchStart === null) return;
-        setTouchCurrent(e.touches[0].clientX);
+    const handleTouchEnd = () => {
+        if (longPressTimer.current) {
+            clearTimeout(longPressTimer.current);
+            longPressTimer.current = null;
+        }
     };
 
-    const handleTouchEnd = (transactionId: number) => {
-        if (touchStart === null || touchCurrent === null) {
-            setTouchStart(null);
-            setTouchCurrent(null);
-            return;
+    const handleTouchMove = () => {
+        // Cancel long press if user moves finger (scrolling)
+        if (longPressTimer.current) {
+            clearTimeout(longPressTimer.current);
+            longPressTimer.current = null;
         }
-
-        const diff = touchStart - touchCurrent;
-        const threshold = 50;
-
-        // Swipe left - show delete
-        if (diff > threshold) {
-            setSwipedCard(transactionId);
-        }
-        // Swipe right - close
-        else if (diff < -threshold) {
-            setSwipedCard(null);
-        }
-        // Not enough swipe - reset
-        else {
-            setSwipedCard(null);
-        }
-
-        setTouchStart(null);
-        setTouchCurrent(null);
-    };
-
-    const getSwipeOffset = (transactionId: number) => {
-        if (swipedCard !== transactionId || touchStart === null) return 0;
-        if (touchCurrent === null) return 0;
-
-        const diff = touchCurrent - touchStart;
-        // Limit swipe to -100px (left) and 100px (right)
-        return Math.max(-100, Math.min(100, diff));
     };
 
     const decodeHtmlEntities = (text: string) => {
@@ -462,36 +440,15 @@ export default function TransactionsPage() {
                                         <div
                                             key={tx.id}
                                             data-transaction-date={tx.date}
-                                            className="group sm:px-4 sm:py-3 bg-white hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 transition-colors relative overflow-hidden"
+                                            className="group sm:px-4 sm:py-3 bg-white hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 transition-colors"
                                         >
-                                            {/* Mobile Layout with Swipe */}
-                                            <div className="sm:hidden relative">
-                                                {/* Action Buttons Background (Revealed on Swipe) */}
-                                                <div className="absolute inset-0 flex items-center justify-end pr-2 bg-gradient-to-l from-red-500 to-red-600">
-                                                    <button
-                                                        onClick={() => {
-                                                            setDeleteConfirm(tx);
-                                                            setSwipedCard(null);
-                                                        }}
-                                                        className="px-4 py-2 text-white font-medium text-sm"
-                                                    >
-                                                        <FiTrash2 className="w-5 h-5" />
-                                                    </button>
-                                                </div>
-
-                                                {/* Swipeable Card Content */}
+                                            {/* Mobile Layout with Long Press */}
+                                            <div className="sm:hidden">
                                                 <div
-                                                    className="relative bg-white px-2 py-1.5 transition-transform duration-200"
-                                                    style={{
-                                                        transform: swipedCard === tx.id && touchStart !== null && touchCurrent !== null
-                                                            ? `translateX(${getSwipeOffset(tx.id)}px)`
-                                                            : swipedCard === tx.id
-                                                                ? 'translateX(-80px)'
-                                                                : 'translateX(0)'
-                                                    }}
-                                                    onTouchStart={(e) => handleTouchStart(e, tx.id)}
+                                                    className="px-2 py-1.5 active:bg-gray-100 transition-colors"
+                                                    onTouchStart={() => handleTouchStart(tx.id)}
+                                                    onTouchEnd={handleTouchEnd}
                                                     onTouchMove={handleTouchMove}
-                                                    onTouchEnd={() => handleTouchEnd(tx.id)}
                                                 >
                                                     <div className="flex items-start justify-between gap-2">
                                                         <div className="flex-1 min-w-0">
@@ -511,16 +468,6 @@ export default function TransactionsPage() {
                                                             {isExpense ? '-' : '+'}{formatCurrency(Math.abs(tx.amount))}
                                                         </div>
                                                     </div>
-
-                                                    {/* Edit button - tap to edit */}
-                                                    <button
-                                                        onClick={() => {
-                                                            handleEdit(tx.id);
-                                                            setSwipedCard(null);
-                                                        }}
-                                                        className="absolute inset-0 w-full h-full"
-                                                        aria-label="Tap to edit, swipe left to delete"
-                                                    />
                                                 </div>
                                             </div>
 
@@ -642,6 +589,68 @@ export default function TransactionsPage() {
                     </button>
                 </div>
             </nav>
+
+            {/* Action Menu Bottom Sheet - Mobile Only */}
+            {showActionMenu && (
+                <div
+                    className="fixed inset-0 bg-black/50 z-50 sm:hidden"
+                    onClick={() => setShowActionMenu(null)}
+                >
+                    <div
+                        className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="p-4">
+                            {/* Drag indicator */}
+                            <div className="w-12 h-1 bg-gray-300 rounded-full mx-auto mb-4"></div>
+
+                            <div className="space-y-2">
+                                <button
+                                    onClick={() => {
+                                        handleEdit(showActionMenu);
+                                        setShowActionMenu(null);
+                                    }}
+                                    className="w-full flex items-center gap-3 px-4 py-4 text-left hover:bg-gray-50 rounded-xl transition-colors"
+                                >
+                                    <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center">
+                                        <FiEdit2 className="w-5 h-5 text-indigo-600" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="font-semibold text-gray-900">Edit Transaction</p>
+                                        <p className="text-xs text-gray-500">Modify transaction details</p>
+                                    </div>
+                                </button>
+
+                                <button
+                                    onClick={() => {
+                                        const transaction = transactions.find(t => t.id === showActionMenu);
+                                        if (transaction) {
+                                            setDeleteConfirm(transaction);
+                                            setShowActionMenu(null);
+                                        }
+                                    }}
+                                    className="w-full flex items-center gap-3 px-4 py-4 text-left hover:bg-red-50 rounded-xl transition-colors"
+                                >
+                                    <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                                        <FiTrash2 className="w-5 h-5 text-red-600" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="font-semibold text-red-900">Delete Transaction</p>
+                                        <p className="text-xs text-red-500">Remove permanently</p>
+                                    </div>
+                                </button>
+
+                                <button
+                                    onClick={() => setShowActionMenu(null)}
+                                    className="w-full px-4 py-3 mt-2 text-center font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Delete Confirmation Modal */}
             {deleteConfirm && (
