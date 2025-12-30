@@ -201,32 +201,17 @@ export default function Dashboard() {
 
         async function fetchData() {
             try {
-                // 1. Summary totals
-                const summaryRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/summary/totals`, {
+                // 1. Current month summary (includes normalized recurring)
+                const summaryRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/summary/current-month`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 if (!summaryRes.ok) throw new Error('Failed to fetch summary');
                 const summaryJson = await summaryRes.json();
-                setSummary(summaryJson || {
-                    total_expenses: 0,
-                    total_income: 0,
-                    recurring_expenses: 0
+                setSummary({
+                    total_expenses: summaryJson.monthly_expenses || 0,
+                    total_income: summaryJson.monthly_income || 0,
+                    recurring_expenses: summaryJson.monthly_recurring || 0
                 });
-
-                // 2. Recurring expenses (current month)
-                const recurringRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/recurring/list`, {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-                if (!recurringRes.ok) throw new Error('Failed to fetch recurring expenses');
-                const recurringList: any[] = await recurringRes.json() || [];
-
-                const recurringExpenses = (Array.isArray(recurringList) ? recurringList : []).reduce((acc, item) => {
-                    if (item && item.recurrence && item.amount && item.category_id && item.amount > 0) {
-                        acc += item.amount;
-                    }
-                    return acc;
-                }, 0);
-                setSummary(prev => prev ? { ...prev, recurring_expenses: recurringExpenses } : null);
 
                 // 3. Spending breakdown by category for month
                 const spendingRes = await fetch(
@@ -761,21 +746,21 @@ export default function Dashboard() {
                     <div className="hidden md:grid grid-cols-3 gap-6">
                         <Card
                             icon={<FiTrendingUp size={32} />}
-                            label="Total Expenses"
+                            label="This Month Expenses"
                             value={formatCurrency(summary?.total_expenses || 0)}
                             gradient="from-red-500 to-pink-500"
                             bgGradient="from-red-50 to-pink-50"
                         />
                         <Card
                             icon={<FiDollarSign size={32} />}
-                            label="Total Income"
+                            label="This Month Income"
                             value={formatCurrency(summary?.total_income || 0)}
                             gradient="from-green-500 to-emerald-500"
                             bgGradient="from-green-50 to-emerald-50"
                         />
                         <Card
                             icon={<FiRepeat size={32} />}
-                            label="Recurring Expenses"
+                            label="Monthly Recurring"
                             value={formatCurrency(summary?.recurring_expenses || 0)}
                             gradient="from-orange-500 to-amber-500"
                             bgGradient="from-orange-50 to-amber-50"
@@ -797,7 +782,7 @@ export default function Dashboard() {
                                 <div className="w-full flex-shrink-0 px-1">
                                     <Card
                                         icon={<FiTrendingUp size={32} />}
-                                        label="Total Expenses"
+                                        label="This Month Expenses"
                                         value={formatCurrency(summary?.total_expenses || 0)}
                                         gradient="from-red-500 to-pink-500"
                                         bgGradient="from-red-50 to-pink-50"
@@ -806,7 +791,7 @@ export default function Dashboard() {
                                 <div className="w-full flex-shrink-0 px-1">
                                     <Card
                                         icon={<FiDollarSign size={32} />}
-                                        label="Total Income"
+                                        label="This Month Income"
                                         value={formatCurrency(summary?.total_income || 0)}
                                         gradient="from-green-500 to-emerald-500"
                                         bgGradient="from-green-50 to-emerald-50"
@@ -815,7 +800,7 @@ export default function Dashboard() {
                                 <div className="w-full flex-shrink-0 px-1">
                                     <Card
                                         icon={<FiRepeat size={32} />}
-                                        label="Recurring Expenses"
+                                        label="Monthly Recurring"
                                         value={formatCurrency(summary?.recurring_expenses || 0)}
                                         gradient="from-orange-500 to-amber-500"
                                         bgGradient="from-orange-50 to-amber-50"

@@ -92,6 +92,7 @@ func main() {
 	mux.HandleFunc("/transaction/delete", middleware.SecurityHeaders(middleware.RequireAuth(jwtSecret, deleteTransactionHandler)))
 	mux.HandleFunc("/summary/totals", middleware.SecurityHeaders(middleware.RequireAuth(jwtSecret, summaryTotalsHandler)))
 	mux.HandleFunc("/summary/monthly", middleware.SecurityHeaders(middleware.RequireAuth(jwtSecret, summaryMonthlyHandler)))
+	mux.HandleFunc("/summary/current-month", middleware.SecurityHeaders(middleware.RequireAuth(jwtSecret, summaryCurrentMonthHandler)))
 	mux.HandleFunc("/summary/category", middleware.SecurityHeaders(middleware.RequireAuth(jwtSecret, summaryCategoryHandler)))
 	mux.HandleFunc("/summary/group", middleware.SecurityHeaders(middleware.RequireAuth(jwtSecret, summaryGroupHandler)))
 	mux.HandleFunc("/summary/category/monthly", middleware.SecurityHeaders(middleware.RequireAuth(jwtSecret, summaryCategoryMonthHandler)))
@@ -734,6 +735,21 @@ func summaryMonthlyHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	summary, err := handlers.GetMonthlyTotals(r.Context(), db, userID)
+	if err != nil {
+		http.Error(w, "Error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	json.NewEncoder(w).Encode(summary)
+}
+
+// Returns current month summary with normalized monthly recurring
+func summaryCurrentMonthHandler(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.GetUserID(r)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	summary, err := handlers.GetCurrentMonthSummary(r.Context(), db, userID)
 	if err != nil {
 		http.Error(w, "Error: "+err.Error(), http.StatusInternalServerError)
 		return

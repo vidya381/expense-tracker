@@ -231,3 +231,69 @@ func GetCategoryMonthSummary(ctx context.Context, db *sql.DB, userID int, year, 
 
 	return result, nil
 }
+
+// GetCurrentMonthSummary returns income and expenses for the current month, plus normalized monthly recurring expenses
+func GetCurrentMonthSummary(ctx context.Context, db *sql.DB, userID int) (map[string]float64, error) {
+	ctx, cancel := utils.DBContext(ctx)
+	defer cancel()
+
+	now := time.Now()
+	startOfMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+	endOfMonth := startOfMonth.AddDate(0, 1, 0).Add(-time.Second)
+
+	// Get current month totals
+	var monthlyExpenses, monthlyIncome float64
+	err := db.QueryRowContext(ctx,
+		`SELECT
+			COALESCE(SUM(CASE WHEN c.type = 'expense' THEN t.amount ELSE 0 END),0),
+			COALESCE(SUM(CASE WHEN c.type = 'income' THEN t.amount ELSE 0 END),0)
+		FROM transactions t
+		JOIN categories c ON t.category_id = c.id
+		WHERE t.user_id = $1 AND t.date >= $2 AND t.date <= $3`,
+		userID, startOfMonth.Format("2006-01-02"), endOfMonth.Format("2006-01-02")).Scan(&monthlyExpenses, &monthlyIncome)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query monthly totals: %w", err)
+	}
+
+	// Get normalized monthly recurring expenses
+	rows, err := db.QueryContext(ctx,
+		`SELECT r.amount, r.recurrence
+		FROM recurring_transactions r
+		JOIN categories c ON r.category_id = c.id
+		WHERE r.user_id = $1 AND c.type = 'expense'`, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query recurring expenses: %w", err)
+	}
+	defer rows.Close()
+
+	var monthlyRecurring float64
+	for rows.Next() {
+		var amount float64
+		var recurrence string
+		if err := rows.Scan(&amount, &recurrence); err != nil {
+			return nil, fmt.Errorf("failed to scan recurring expense: %w", err)
+		}
+
+		// Normalize to monthly
+		switch recurrence {
+		case "daily":
+			monthlyRecurring += amount * 30
+		case "weekly":
+			monthlyRecurring += amount * 4
+		case "monthly":
+			monthlyRecurring += amount
+		case "yearly":
+			monthlyRecurring += amount / 12
+		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating recurring expenses: %w", err)
+	}
+
+	return map[string]float64{
+		"monthly_expenses":   monthlyExpenses,
+		"monthly_income":     monthlyIncome,
+		"monthly_recurring":  monthlyRecurring,
+	}, nil
+}
