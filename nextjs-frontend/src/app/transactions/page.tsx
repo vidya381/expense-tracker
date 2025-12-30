@@ -28,7 +28,7 @@ type QuickFilter = 'all' | 'expense' | 'income' | 'this_month' | 'last_month';
 
 export default function TransactionsPage() {
     const router = useRouter();
-    const { token, initialized, logout } = useAuth();
+    const { token, initialized } = useAuth();
     const [authChecked, setAuthChecked] = useState(false);
 
     const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -357,13 +357,6 @@ export default function TransactionsPage() {
                                 Transactions
                             </h1>
                         </div>
-                        <button
-                            onClick={logout}
-                            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 hover:text-indigo-600 transition-colors duration-200"
-                            aria-label="Logout"
-                        >
-                            <span className="text-xs sm:text-sm">Logout</span>
-                        </button>
                     </div>
                 </div>
             </header>
