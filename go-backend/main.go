@@ -124,7 +124,7 @@ func main() {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
-	// Get port from environment (Render/Railway/etc. provide PORT)
+	// Get port from environment (Render provide PORT)
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080" // Default for local development
