@@ -38,7 +38,7 @@ export default function TransactionsPage() {
 
     // Quick filters
     const [quickFilter, setQuickFilter] = useState<QuickFilter>('all');
-    const [filterCategory, setFilterCategory] = useState('');
+    const [searchQuery, setSearchQuery] = useState('');
     const [sortOrder, setSortOrder] = useState<'date_desc' | 'date_asc'>('date_desc');
     const [showScrollTop, setShowScrollTop] = useState(false);
     const [jumpToDate, setJumpToDate] = useState('');
@@ -165,11 +165,21 @@ export default function TransactionsPage() {
             filtered = filtered.filter(t => t.date >= start && t.date <= end);
         }
 
-        // Apply category filter
-        if (filterCategory) {
-            filtered = filtered.filter(t =>
-                t.category.toLowerCase().includes(filterCategory.toLowerCase())
-            );
+        // Apply comprehensive search (description, category, amount, date)
+        if (searchQuery) {
+            const query = searchQuery.toLowerCase();
+            filtered = filtered.filter(t => {
+                // Search in description
+                const descriptionMatch = t.description?.toLowerCase().includes(query);
+                // Search in category
+                const categoryMatch = t.category.toLowerCase().includes(query);
+                // Search in amount (e.g., "50" finds $50.00, $150.00, etc.)
+                const amountMatch = t.amount.toString().includes(query);
+                // Search in date (e.g., "2024-12" finds December 2024, "jan" finds January)
+                const dateMatch = t.date.includes(query) || formatCalendarDate(t.date).toLowerCase().includes(query);
+
+                return descriptionMatch || categoryMatch || amountMatch || dateMatch;
+            });
         }
 
         // Sort
@@ -343,13 +353,13 @@ export default function TransactionsPage() {
                 {/* Search & Sort Controls */}
                 <div className="bg-white/80 backdrop-blur-sm shadow-xl rounded-2xl p-3 sm:p-4 border border-white/20 mb-4">
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
-                        {/* Category Filter */}
+                        {/* Comprehensive Search */}
                         <div className="relative sm:col-span-2">
                             <input
                                 type="text"
-                                placeholder="Search by category..."
-                                value={filterCategory}
-                                onChange={e => setFilterCategory(e.target.value)}
+                                placeholder="Search transactions (description, category, amount, date)..."
+                                value={searchQuery}
+                                onChange={e => setSearchQuery(e.target.value)}
                                 className="w-full pl-3 pr-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white text-gray-900 placeholder:text-gray-400 text-sm"
                             />
                         </div>

@@ -951,8 +951,8 @@ export default function Dashboard() {
                     </section>
                 )}
 
-                {/* 4. Transaction History */}
-                <section className="bg-white/80 backdrop-blur-sm shadow-xl rounded-2xl p-3 sm:p-6 border border-white/20">
+                {/* 4. Transaction History - Desktop Only */}
+                <section className="hidden sm:block bg-white/80 backdrop-blur-sm shadow-xl rounded-2xl p-3 sm:p-6 border border-white/20">
                     <div className="mb-3 sm:mb-6">
                         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-2 sm:mb-4">
                             <div>
