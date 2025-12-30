@@ -131,13 +131,10 @@ export default function Dashboard() {
     const [summary, setSummary] = useState<SummaryData | null>(null);
     const [selectedMonth, setSelectedMonth] = useState<string>(format(new Date(), 'yyyy-MM'));
     const [spendingData, setSpendingData] = useState<SpendingCategory[]>([]);
-    const [previousMonthSpending, setPreviousMonthSpending] = useState<SpendingCategory[]>([]);
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
-    const [showAllCategories, setShowAllCategories] = useState(false);
-    const [comparisonSlider, setComparisonSlider] = useState(50); // 0-100, controls split view
 
     // Filters, sorting & pagination
     const [page, setPage] = useState(1);
@@ -324,27 +321,6 @@ export default function Dashboard() {
                         }))
                         : []
                 );
-
-                // 3.1 Fetch previous month's spending for comparison
-                const prevMonthDate = subMonths(parseISO(selectedMonth + '-01'), 1);
-                const prevMonthYear = format(prevMonthDate, 'yyyy');
-                const prevMonthNum = parseInt(format(prevMonthDate, 'MM'));
-
-                const prevSpendingRes = await fetch(
-                    `${process.env.NEXT_PUBLIC_API_URL}/summary/category/monthly?year=${prevMonthYear}&month=${prevMonthNum}`,
-                    { headers: { Authorization: `Bearer ${token}` } }
-                );
-                if (prevSpendingRes.ok) {
-                    const prevSpendingJson = await prevSpendingRes.json();
-                    setPreviousMonthSpending(
-                        Array.isArray(prevSpendingJson)
-                            ? prevSpendingJson.map((item: any) => ({
-                                category: item.category || 'Unknown',
-                                amount: item.total || 0,
-                            }))
-                            : []
-                    );
-                }
 
                 // 4. Transactions list with filtering/sorting - Fetch ALL transactions
                 const params = new URLSearchParams({
@@ -999,139 +975,64 @@ export default function Dashboard() {
                         </div>
                     ) : (
                         (() => {
-                            const currentTotal = spendingData.reduce((sum, item) => sum + item.amount, 0);
-                            const prevTotal = previousMonthSpending.reduce((sum, item) => sum + item.amount, 0);
-                            const totalChange = currentTotal - prevTotal;
-                            const totalPercentChange = prevTotal > 0 ? ((totalChange / prevTotal) * 100) : 0;
-
-                            // Get all unique categories from both months
-                            const allCategories = Array.from(new Set([
-                                ...spendingData.map(item => item.category),
-                                ...previousMonthSpending.map(item => item.category)
-                            ]));
-
-                            // Sort by current month spending (highest first)
-                            const sortedCategories = allCategories.sort((a, b) => {
-                                const aAmount = spendingData.find(item => item.category === a)?.amount || 0;
-                                const bAmount = spendingData.find(item => item.category === b)?.amount || 0;
-                                return bAmount - aAmount;
-                            });
+                            const totalSpending = spendingData.reduce((sum, item) => sum + item.amount, 0);
+                            const maxAmount = Math.max(...spendingData.map(item => item.amount));
 
                             return (
-                                <div className="space-y-6">
-                                    {/* Summary Card */}
-                                    <div className="bg-gradient-to-r from-indigo-500 to-purple-600 p-6 rounded-2xl text-white shadow-xl">
-                                        <div className="flex items-center justify-between flex-wrap gap-4">
-                                            <div>
-                                                <p className="text-sm opacity-90 mb-1">Total Spending Comparison</p>
-                                                <p className="text-3xl font-bold mb-2">
-                                                    {formatCurrency(currentTotal)} <span className="text-sm opacity-75">this month</span>
-                                                </p>
-                                                <p className="text-sm opacity-90">
-                                                    {formatCurrency(prevTotal)} last month
-                                                </p>
-                                            </div>
-                                            <div className="text-center bg-white/20 rounded-xl p-4 backdrop-blur-sm">
-                                                <p className="text-sm opacity-90 mb-1">Change</p>
-                                                <p className={`text-2xl font-bold flex items-center gap-2 ${
-                                                    totalPercentChange > 0 ? 'text-red-200' : totalPercentChange < 0 ? 'text-green-200' : 'text-white'
-                                                }`}>
-                                                    {totalPercentChange > 0 ? '📈' : totalPercentChange < 0 ? '📉' : '➡️'}
-                                                    {totalPercentChange > 0 ? '+' : ''}{totalPercentChange.toFixed(1)}%
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {spendingData.map((item, index) => {
+                                        const percentage = totalSpending > 0 ? (item.amount / totalSpending) * 100 : 0;
+                                        const barWidth = maxAmount > 0 ? (item.amount / maxAmount) * 100 : 0;
 
-                                    {/* Interactive Comparison Slider */}
-                                    <div className="bg-white p-6 rounded-2xl border-2 border-gray-200">
-                                        <div className="flex items-center justify-between mb-4">
-                                            <h3 className="text-lg font-bold text-gray-900">Drag to Compare</h3>
-                                            <div className="flex items-center gap-4 text-sm">
-                                                <span className="flex items-center gap-2">
-                                                    <div className="w-3 h-3 bg-indigo-500 rounded-full"></div>
-                                                    This Month
-                                                </span>
-                                                <span className="flex items-center gap-2">
-                                                    <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
-                                                    Last Month
-                                                </span>
-                                            </div>
-                                        </div>
+                                        // Color palette for different categories
+                                        const colors = [
+                                            { gradient: 'from-indigo-500 to-purple-600', bg: 'from-indigo-50 to-purple-50', border: 'border-indigo-200' },
+                                            { gradient: 'from-pink-500 to-rose-600', bg: 'from-pink-50 to-rose-50', border: 'border-pink-200' },
+                                            { gradient: 'from-blue-500 to-cyan-600', bg: 'from-blue-50 to-cyan-50', border: 'border-blue-200' },
+                                            { gradient: 'from-emerald-500 to-teal-600', bg: 'from-emerald-50 to-teal-50', border: 'border-emerald-200' },
+                                            { gradient: 'from-amber-500 to-orange-600', bg: 'from-amber-50 to-orange-50', border: 'border-amber-200' },
+                                            { gradient: 'from-violet-500 to-purple-600', bg: 'from-violet-50 to-purple-50', border: 'border-violet-200' },
+                                        ];
+                                        const color = colors[index % colors.length];
 
-                                        <input
-                                            type="range"
-                                            min="0"
-                                            max="100"
-                                            value={comparisonSlider}
-                                            onChange={(e) => setComparisonSlider(parseInt(e.target.value))}
-                                            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer mb-6"
-                                            style={{
-                                                background: `linear-gradient(to right, #6366f1 0%, #6366f1 ${comparisonSlider}%, #9ca3af ${comparisonSlider}%, #9ca3af 100%)`
-                                            }}
-                                        />
-
-                                        {/* Category Comparison Bars */}
-                                        <div className="space-y-4">
-                                            {sortedCategories.map((category) => {
-                                                const currentAmount = spendingData.find(item => item.category === category)?.amount || 0;
-                                                const prevAmount = previousMonthSpending.find(item => item.category === category)?.amount || 0;
-                                                const change = currentAmount - prevAmount;
-                                                const percentChange = prevAmount > 0 ? ((change / prevAmount) * 100) : 0;
-
-                                                const maxAmount = Math.max(currentAmount, prevAmount, 1);
-                                                const currentWidth = (currentAmount / maxAmount) * 100;
-                                                const prevWidth = (prevAmount / maxAmount) * 100;
-
-                                                return (
-                                                    <div key={category} className="space-y-2">
-                                                        <div className="flex items-center justify-between">
-                                                            <h4 className="font-semibold text-gray-900">{category}</h4>
-                                                            {Math.abs(percentChange) >= 5 && (
-                                                                <span className={`text-sm font-semibold flex items-center gap-1 ${
-                                                                    percentChange > 0 ? 'text-red-600' : 'text-green-600'
-                                                                }`}>
-                                                                    {percentChange > 0 ? '↑' : '↓'} {Math.abs(percentChange).toFixed(0)}%
-                                                                </span>
-                                                            )}
-                                                        </div>
-
-                                                        <div className="relative h-12">
-                                                            {/* Previous Month Bar (Background) */}
-                                                            <div
-                                                                className="absolute inset-y-0 left-0 bg-gray-200 rounded-lg flex items-center px-3 transition-all duration-300"
-                                                                style={{
-                                                                    width: `${prevWidth}%`,
-                                                                    opacity: comparisonSlider < 50 ? 1 : 0.3
-                                                                }}
-                                                            >
-                                                                {comparisonSlider <= 50 && prevAmount > 0 && (
-                                                                    <span className="text-sm font-semibold text-gray-700">
-                                                                        {formatCurrency(prevAmount)}
-                                                                    </span>
-                                                                )}
-                                                            </div>
-
-                                                            {/* Current Month Bar (Foreground) */}
-                                                            <div
-                                                                className="absolute inset-y-0 left-0 bg-indigo-500 rounded-lg flex items-center px-3 transition-all duration-300"
-                                                                style={{
-                                                                    width: `${currentWidth}%`,
-                                                                    opacity: comparisonSlider > 50 ? 1 : 0.3
-                                                                }}
-                                                            >
-                                                                {comparisonSlider >= 50 && currentAmount > 0 && (
-                                                                    <span className="text-sm font-semibold text-white">
-                                                                        {formatCurrency(currentAmount)}
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                        </div>
+                                        return (
+                                            <div
+                                                key={item.category}
+                                                className={`bg-gradient-to-br ${color.bg} p-5 rounded-xl border-2 ${color.border} shadow-md hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1`}
+                                            >
+                                                <div className="flex items-start justify-between mb-3">
+                                                    <div className="flex-1">
+                                                        <h3 className="text-sm font-semibold text-gray-700 mb-1 truncate" title={item.category}>
+                                                            {item.category}
+                                                        </h3>
+                                                        <p className="text-2xl font-bold text-gray-900">
+                                                            {formatCurrency(item.amount)}
+                                                        </p>
                                                     </div>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
+                                                    <div className={`p-2 rounded-lg bg-gradient-to-br ${color.gradient} shadow-lg`}>
+                                                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                                                        </svg>
+                                                    </div>
+                                                </div>
+
+                                                {/* Progress bar */}
+                                                <div className="mt-4">
+                                                    <div className="flex items-center justify-between mb-2">
+                                                        <span className="text-xs font-medium text-gray-600">
+                                                            {percentage.toFixed(1)}% of total
+                                                        </span>
+                                                    </div>
+                                                    <div className="w-full bg-white/50 rounded-full h-2.5 overflow-hidden shadow-inner">
+                                                        <div
+                                                            className={`h-full bg-gradient-to-r ${color.gradient} rounded-full transition-all duration-500 ease-out`}
+                                                            style={{ width: `${barWidth}%` }}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             );
                         })()
