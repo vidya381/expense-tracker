@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../context/AuthContext';
 import { FiPlus, FiEdit2, FiTrash2, FiAlertTriangle, FiCheckCircle, FiX, FiArrowLeft, FiDollarSign, FiHome, FiRepeat, FiList } from 'react-icons/fi';
@@ -35,6 +35,14 @@ export default function BudgetsPage() {
     const [editingBudget, setEditingBudget] = useState<Budget | null>(null);
     const [deleteConfirm, setDeleteConfirm] = useState<Budget | null>(null);
 
+    // Touch interaction state
+    const [showActionMenu, setShowActionMenu] = useState<number | null>(null);
+    const [showDetails, setShowDetails] = useState<Budget | null>(null);
+    const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+    const isLongPress = useRef<boolean>(false);
+    const touchStartPos = useRef<{ x: number; y: number } | null>(null);
+    const hasMoved = useRef<boolean>(false);
+
     // Form state
     const [categoryId, setCategoryId] = useState<number>(0);
     const [amount, setAmount] = useState('');
@@ -58,6 +66,67 @@ export default function BudgetsPage() {
             fetchCategories();
         }
     }, [authChecked, token]);
+
+    // Prevent background scroll when modals are open
+    useEffect(() => {
+        if (showDetails || showActionMenu || showModal || deleteConfirm) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = 'unset';
+        }
+        return () => {
+            document.body.style.overflow = 'unset';
+        };
+    }, [showDetails, showActionMenu, showModal, deleteConfirm]);
+
+    // Touch handlers for tap and long press
+    const handleTouchStart = (e: React.TouchEvent, budget: Budget) => {
+        isLongPress.current = false;
+        hasMoved.current = false;
+        touchStartPos.current = {
+            x: e.touches[0].clientX,
+            y: e.touches[0].clientY
+        };
+
+        longPressTimer.current = setTimeout(() => {
+            isLongPress.current = true;
+            setShowActionMenu(budget.id);
+            if (navigator.vibrate) {
+                navigator.vibrate(50);
+            }
+        }, 500);
+    };
+
+    const handleTouchEnd = (budget: Budget) => {
+        if (longPressTimer.current) {
+            clearTimeout(longPressTimer.current);
+            longPressTimer.current = null;
+        }
+
+        if (!isLongPress.current && !hasMoved.current) {
+            setShowDetails(budget);
+        }
+
+        isLongPress.current = false;
+        hasMoved.current = false;
+        touchStartPos.current = null;
+    };
+
+    const handleTouchMove = (e: React.TouchEvent) => {
+        if (touchStartPos.current) {
+            const deltaX = Math.abs(e.touches[0].clientX - touchStartPos.current.x);
+            const deltaY = Math.abs(e.touches[0].clientY - touchStartPos.current.y);
+
+            if (deltaX > 10 || deltaY > 10) {
+                hasMoved.current = true;
+            }
+        }
+
+        if (longPressTimer.current) {
+            clearTimeout(longPressTimer.current);
+            longPressTimer.current = null;
+        }
+    };
 
     const fetchBudgets = async () => {
         if (!token) return;
@@ -261,7 +330,7 @@ export default function BudgetsPage() {
                         </button>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-8">
                         {budgets.map((budget) => {
                             const progress = calculateProgress(budget);
                             const progressColor = getProgressColor(budget);
@@ -288,69 +357,115 @@ export default function BudgetsPage() {
                             return (
                                 <div
                                     key={budget.id}
-                                    className={`group ${bgColor} border ${borderColor} rounded-xl p-4 hover:shadow-lg transition-all duration-200`}
+                                    className={`group ${bgColor} border ${borderColor} rounded-xl hover:shadow-lg transition-all duration-200 select-none`}
+                                    style={{ WebkitUserSelect: 'none', userSelect: 'none', WebkitTouchCallout: 'none' }}
+                                    onTouchStart={(e) => handleTouchStart(e, budget)}
+                                    onTouchEnd={() => handleTouchEnd(budget)}
+                                    onTouchMove={handleTouchMove}
+                                    onContextMenu={(e) => e.preventDefault()}
                                 >
-                                    <div className="flex items-start justify-between mb-3">
-                                        <div className="flex-1">
-                                            <h3 className="font-bold text-gray-900 text-sm mb-1">
-                                                {budget.category_name}
-                                            </h3>
-                                            <span className="text-xs px-2 py-1 bg-white rounded-full text-gray-600 capitalize">
-                                                {budget.period}
-                                            </span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            {progress >= budget.alert_threshold && (
-                                                <FiAlertTriangle className={`w-5 h-5 ${textColor} flex-shrink-0`} />
-                                            )}
-                                            <div className={`p-2 rounded-lg bg-gradient-to-br ${iconGradient} shadow-lg flex-shrink-0`}>
-                                                <FiDollarSign className="w-5 h-5 text-white" />
+                                    {/* Mobile Compact Layout */}
+                                    <div className="sm:hidden p-3">
+                                        <div className="flex items-start justify-between mb-2">
+                                            <div className="flex-1 min-w-0">
+                                                <h3 className="font-bold text-gray-900 text-sm mb-1.5 truncate">
+                                                    {budget.category_name}
+                                                </h3>
+                                                <span className="text-[10px] px-1.5 py-0.5 bg-white rounded-full text-gray-600 capitalize">
+                                                    {budget.period}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-1.5">
+                                                {progress >= budget.alert_threshold && (
+                                                    <FiAlertTriangle className={`w-4 h-4 ${textColor} flex-shrink-0`} />
+                                                )}
+                                                <div className={`p-1.5 rounded-lg bg-gradient-to-br ${iconGradient} shadow-lg flex-shrink-0`}>
+                                                    <FiDollarSign className="w-4 h-4 text-white" />
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
 
-                                    <div className="mb-3">
-                                        <div className="flex items-baseline justify-between mb-2">
-                                            <span className={`text-2xl font-bold ${textColor}`}>
+                                        <div className="flex items-baseline gap-1 mb-2">
+                                            <span className={`text-xl font-bold ${textColor}`}>
                                                 ${budget.current_spending.toFixed(0)}
                                             </span>
-                                            <span className="text-sm text-gray-600">
+                                            <span className="text-xs text-gray-600">
                                                 / ${budget.amount.toFixed(0)}
                                             </span>
                                         </div>
 
-                                        <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden mb-2">
+                                        <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
                                             <div
                                                 className={`h-full ${progressColor} transition-all duration-500`}
                                                 style={{ width: `${progress}%` }}
                                             />
                                         </div>
-
-                                        <div className="flex items-center justify-between text-xs text-gray-600">
-                                            <span>{progress.toFixed(0)}% used</span>
-                                            <span className="font-semibold">${remaining.toFixed(0)} left</span>
-                                        </div>
                                     </div>
 
-                                    <div className="flex items-center justify-between pt-3 border-t border-gray-200">
-                                        <span className="text-xs text-gray-600">
-                                            🔔 Alert at {budget.alert_threshold}%
-                                        </span>
-                                        <div className="flex gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                                            <button
-                                                onClick={() => openEditModal(budget)}
-                                                className="p-1.5 bg-white hover:bg-gray-50 rounded-lg transition-colors shadow-sm"
-                                                title="Edit"
-                                            >
-                                                <FiEdit2 className="w-4 h-4 text-gray-600" />
-                                            </button>
-                                            <button
-                                                onClick={() => setDeleteConfirm(budget)}
-                                                className="p-1.5 bg-white hover:bg-gray-50 rounded-lg transition-colors shadow-sm"
-                                                title="Delete"
-                                            >
-                                                <FiTrash2 className="w-4 h-4 text-rose-600" />
-                                            </button>
+                                    {/* Desktop Layout */}
+                                    <div className="hidden sm:block p-4">
+                                        <div className="flex items-start justify-between mb-3">
+                                            <div className="flex-1">
+                                                <h3 className="font-bold text-gray-900 text-sm mb-1">
+                                                    {budget.category_name}
+                                                </h3>
+                                                <span className="text-xs px-2 py-1 bg-white rounded-full text-gray-600 capitalize">
+                                                    {budget.period}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                {progress >= budget.alert_threshold && (
+                                                    <FiAlertTriangle className={`w-5 h-5 ${textColor} flex-shrink-0`} />
+                                                )}
+                                                <div className={`p-2 rounded-lg bg-gradient-to-br ${iconGradient} shadow-lg flex-shrink-0`}>
+                                                    <FiDollarSign className="w-5 h-5 text-white" />
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="mb-3">
+                                            <div className="flex items-baseline justify-between mb-2">
+                                                <span className={`text-2xl font-bold ${textColor}`}>
+                                                    ${budget.current_spending.toFixed(0)}
+                                                </span>
+                                                <span className="text-sm text-gray-600">
+                                                    / ${budget.amount.toFixed(0)}
+                                                </span>
+                                            </div>
+
+                                            <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden mb-2">
+                                                <div
+                                                    className={`h-full ${progressColor} transition-all duration-500`}
+                                                    style={{ width: `${progress}%` }}
+                                                />
+                                            </div>
+
+                                            <div className="flex items-center justify-between text-xs text-gray-600">
+                                                <span>{progress.toFixed(0)}% used</span>
+                                                <span className="font-semibold">${remaining.toFixed(0)} left</span>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-center justify-between pt-3 border-t border-gray-200">
+                                            <span className="text-xs text-gray-600">
+                                                🔔 Alert at {budget.alert_threshold}%
+                                            </span>
+                                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button
+                                                    onClick={() => openEditModal(budget)}
+                                                    className="p-1.5 bg-white hover:bg-gray-50 rounded-lg transition-colors shadow-sm"
+                                                    title="Edit"
+                                                >
+                                                    <FiEdit2 className="w-4 h-4 text-gray-600" />
+                                                </button>
+                                                <button
+                                                    onClick={() => setDeleteConfirm(budget)}
+                                                    className="p-1.5 bg-white hover:bg-gray-50 rounded-lg transition-colors shadow-sm"
+                                                    title="Delete"
+                                                >
+                                                    <FiTrash2 className="w-4 h-4 text-rose-600" />
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -519,6 +634,158 @@ export default function BudgetsPage() {
                         </div>
                     </div>
                 )}
+
+                {/* Action Menu Bottom Sheet - Mobile Only */}
+                {showActionMenu && (
+                    <div
+                        className="fixed inset-0 bg-black/50 z-50 sm:hidden"
+                        onClick={() => setShowActionMenu(null)}
+                    >
+                        <div
+                            className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="p-4">
+                                <div className="space-y-2">
+                                    <button
+                                        onClick={() => {
+                                            const budget = budgets.find(b => b.id === showActionMenu);
+                                            if (budget) openEditModal(budget);
+                                            setShowActionMenu(null);
+                                        }}
+                                        className="w-full flex items-center gap-3 px-4 py-4 text-left hover:bg-gray-50 rounded-xl transition-colors"
+                                    >
+                                        <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center">
+                                            <FiEdit2 className="w-5 h-5 text-indigo-600" />
+                                        </div>
+                                        <div className="flex-1">
+                                            <p className="font-semibold text-gray-900">Edit Budget</p>
+                                            <p className="text-xs text-gray-500">Modify budget details</p>
+                                        </div>
+                                    </button>
+
+                                    <button
+                                        onClick={() => {
+                                            const budget = budgets.find(b => b.id === showActionMenu);
+                                            if (budget) {
+                                                setDeleteConfirm(budget);
+                                                setShowActionMenu(null);
+                                            }
+                                        }}
+                                        className="w-full flex items-center gap-3 px-4 py-4 text-left hover:bg-red-50 rounded-xl transition-colors"
+                                    >
+                                        <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                                            <FiTrash2 className="w-5 h-5 text-red-600" />
+                                        </div>
+                                        <div className="flex-1">
+                                            <p className="font-semibold text-red-900">Delete Budget</p>
+                                            <p className="text-xs text-red-500">Remove permanently</p>
+                                        </div>
+                                    </button>
+
+                                    <button
+                                        onClick={() => setShowActionMenu(null)}
+                                        className="w-full px-4 py-3 mt-2 text-center font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Details Modal - Mobile Only */}
+                {showDetails && (() => {
+                    const progress = calculateProgress(showDetails);
+                    const progressColor = getProgressColor(showDetails);
+                    const remaining = Math.max(0, showDetails.amount - showDetails.current_spending);
+
+                    let bgColor = 'from-emerald-50 to-teal-50';
+                    let textColor = 'text-emerald-700';
+                    let statusText = '✅ On Track';
+
+                    if (progress >= showDetails.alert_threshold) {
+                        bgColor = 'from-rose-50 to-pink-50';
+                        textColor = 'text-rose-700';
+                        statusText = '⚠️ Over Budget';
+                    } else if (progress >= showDetails.alert_threshold * 0.8) {
+                        bgColor = 'from-amber-50 to-orange-50';
+                        textColor = 'text-amber-700';
+                        statusText = '⚡ Warning';
+                    }
+
+                    return (
+                        <div
+                            className="fixed inset-0 bg-black/50 z-50 sm:hidden"
+                            onClick={() => setShowDetails(null)}
+                        >
+                            <div
+                                className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl"
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                <div className="p-6">
+                                    {/* Header */}
+                                    <div className="mb-6">
+                                        <h3 className="text-xl font-bold text-gray-900">Budget Details</h3>
+                                    </div>
+
+                                    {/* Status Display */}
+                                    <div className={`text-center mb-6 p-6 bg-gradient-to-br ${bgColor} rounded-2xl`}>
+                                        <p className="text-sm text-gray-600 mb-2">{showDetails.category_name}</p>
+                                        <p className={`text-4xl font-bold ${textColor} mb-2`}>
+                                            ${showDetails.current_spending.toFixed(2)}
+                                        </p>
+                                        <p className="text-sm text-gray-600">of ${showDetails.amount.toFixed(2)}</p>
+                                        <p className={`text-lg font-semibold ${textColor} mt-2`}>{statusText}</p>
+                                    </div>
+
+                                    {/* Progress Bar */}
+                                    <div className="mb-6">
+                                        <div className="flex items-center justify-between text-sm mb-2">
+                                            <span className="text-gray-600">{progress.toFixed(1)}% used</span>
+                                            <span className={`font-semibold ${textColor}`}>${remaining.toFixed(2)} remaining</span>
+                                        </div>
+                                        <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                                            <div
+                                                className={`h-full ${progressColor} transition-all duration-500`}
+                                                style={{ width: `${Math.min(progress, 100)}%` }}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Details */}
+                                    <div className="space-y-4">
+                                        <div>
+                                            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Period</p>
+                                            <p className="text-base text-gray-900 capitalize">{showDetails.period}</p>
+                                        </div>
+
+                                        <div>
+                                            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Alert Threshold</p>
+                                            <p className="text-base text-gray-900">
+                                                🔔 {showDetails.alert_threshold}%
+                                            </p>
+                                        </div>
+
+                                        <div>
+                                            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Budget Limit</p>
+                                            <p className="text-base text-gray-900">${showDetails.amount.toFixed(2)}</p>
+                                        </div>
+                                    </div>
+
+                                    {/* Close Button */}
+                                    <button
+                                        onClick={() => setShowDetails(null)}
+                                        className="w-full mt-6 px-4 py-3 bg-gray-100 hover:bg-gray-200 rounded-xl font-semibold text-gray-700 transition-colors"
+                                    >
+                                        Close
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })()}
 
                 {/* Delete Confirmation Modal */}
                 {deleteConfirm && (
