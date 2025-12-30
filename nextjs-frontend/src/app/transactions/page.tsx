@@ -169,14 +169,21 @@ export default function TransactionsPage() {
         if (searchQuery) {
             const query = searchQuery.toLowerCase();
             filtered = filtered.filter(t => {
-                // Search in description
-                const descriptionMatch = t.description?.toLowerCase().includes(query);
+                // Search in description (handle null/undefined)
+                const descriptionMatch = t.description?.toLowerCase().includes(query) ?? false;
                 // Search in category
-                const categoryMatch = t.category.toLowerCase().includes(query);
+                const categoryMatch = t.category?.toLowerCase().includes(query) ?? false;
                 // Search in amount (e.g., "50" finds $50.00, $150.00, etc.)
-                const amountMatch = t.amount.toString().includes(query);
+                const amountMatch = t.amount?.toString().includes(query) ?? false;
                 // Search in date (e.g., "2024-12" finds December 2024, "jan" finds January)
-                const dateMatch = t.date.includes(query) || formatCalendarDate(t.date).toLowerCase().includes(query);
+                let dateMatch = t.date?.includes(query) ?? false;
+                if (!dateMatch && t.date) {
+                    try {
+                        dateMatch = formatCalendarDate(t.date).toLowerCase().includes(query);
+                    } catch (e) {
+                        dateMatch = false;
+                    }
+                }
 
                 return descriptionMatch || categoryMatch || amountMatch || dateMatch;
             });
