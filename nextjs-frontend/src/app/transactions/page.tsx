@@ -439,7 +439,7 @@ export default function TransactionsPage() {
                         <div className="relative sm:col-span-2">
                             <input
                                 type="text"
-                                placeholder="Search transactions (description, category, amount, date)..."
+                                placeholder="Search transactions..."
                                 value={searchQuery}
                                 onChange={e => setSearchQuery(e.target.value)}
                                 className="w-full pl-3 pr-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white text-gray-900 placeholder:text-gray-400 text-sm"
