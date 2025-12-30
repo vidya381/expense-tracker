@@ -16,12 +16,12 @@ func InitLogger() {
 	if env == "production" {
 		// JSON format for production (easier to parse by log aggregators)
 		handler = slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-			Level: slog.LevelDebug, // Changed to Debug for more verbose logging
+			Level: slog.LevelInfo,
 		})
 	} else {
 		// Text format for development (more readable)
 		handler = slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-			Level: slog.LevelDebug, // Changed to Debug for more verbose logging
+			Level: slog.LevelInfo,
 		})
 	}
 
