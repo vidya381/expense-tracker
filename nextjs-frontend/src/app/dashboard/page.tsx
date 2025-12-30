@@ -227,6 +227,19 @@ export default function Dashboard() {
         };
     }, [authChecked, token]);
 
+    // Lock body scroll when historical modal is open
+    useEffect(() => {
+        if (showHistoricalModal) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = 'unset';
+        }
+
+        return () => {
+            document.body.style.overflow = 'unset';
+        };
+    }, [showHistoricalModal]);
+
     // Fetch data whenever token or filters/month changes
     useEffect(() => {
         if (!token || !authChecked) return;
@@ -1379,7 +1392,7 @@ export default function Dashboard() {
             {/* Historical Modal */}
             {showHistoricalModal && monthlyHistory.length > 0 && (
                 <div
-                    className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center"
+                    className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center overflow-hidden"
                     onClick={() => setShowHistoricalModal(false)}
                 >
                     <div
@@ -1451,14 +1464,6 @@ export default function Dashboard() {
                                     );
                                 })}
                             </div>
-
-                            {/* Close Button */}
-                            <button
-                                onClick={() => setShowHistoricalModal(false)}
-                                className="w-full mt-6 px-4 py-3 bg-gray-100 hover:bg-gray-200 rounded-xl font-semibold text-gray-700 transition-colors"
-                            >
-                                Close
-                            </button>
                         </div>
                     </div>
                 </div>
