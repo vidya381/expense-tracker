@@ -362,7 +362,7 @@ export default function BudgetsPage() {
                 {/* Floating Add Button */}
                 <button
                     onClick={openAddModal}
-                    className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 p-4 sm:p-5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-full shadow-2xl hover:shadow-3xl transition-all duration-200 transform hover:scale-110 z-50 group"
+                    className="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 p-4 sm:p-5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-full shadow-2xl hover:shadow-3xl transition-all duration-200 transform hover:scale-110 z-50 group"
                     aria-label="Add new budget"
                 >
                     <FiPlus className="w-6 h-6" />
