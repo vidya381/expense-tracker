@@ -336,7 +336,7 @@ export default function BudgetsPage() {
                                         <span className="text-xs text-gray-600">
                                             🔔 Alert at {budget.alert_threshold}%
                                         </span>
-                                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <div className="flex gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                                             <button
                                                 onClick={() => openEditModal(budget)}
                                                 className="p-1.5 bg-white hover:bg-gray-50 rounded-lg transition-colors shadow-sm"
