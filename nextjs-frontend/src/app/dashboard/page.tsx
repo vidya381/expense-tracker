@@ -1401,18 +1401,12 @@ export default function Dashboard() {
                     >
                         <div className="p-6">
                             {/* Header */}
-                            <div className="flex items-center justify-between mb-6">
+                            <div className="mb-6">
                                 <h3 className="text-xl font-bold text-gray-900">
                                     {historicalType === 'expenses' && 'Expenses History'}
                                     {historicalType === 'income' && 'Income History'}
                                     {historicalType === 'recurring' && 'Recurring History'}
                                 </h3>
-                                <button
-                                    onClick={() => setShowHistoricalModal(false)}
-                                    className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                                >
-                                    <FiX className="w-5 h-5 text-gray-500" />
-                                </button>
                             </div>
 
                             {/* Monthly List */}
@@ -1464,6 +1458,14 @@ export default function Dashboard() {
                                     );
                                 })}
                             </div>
+
+                            {/* Close Button */}
+                            <button
+                                onClick={() => setShowHistoricalModal(false)}
+                                className="w-full mt-6 px-4 py-3 bg-gray-100 hover:bg-gray-200 rounded-xl font-semibold text-gray-700 transition-colors"
+                            >
+                                Close
+                            </button>
                         </div>
                     </div>
                 </div>
