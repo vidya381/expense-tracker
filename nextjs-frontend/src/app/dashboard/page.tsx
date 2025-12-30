@@ -112,6 +112,11 @@ export default function Dashboard() {
     const [showScrollTop, setShowScrollTop] = useState(false);
     const [jumpToDate, setJumpToDate] = useState('');
     const [deleteConfirm, setDeleteConfirm] = useState<Transaction | null>(null);
+
+    // Swipeable summary cards state (mobile only)
+    const [activeCardIndex, setActiveCardIndex] = useState(0);
+    const [touchStartX, setTouchStartX] = useState<number | null>(null);
+    const [touchEndX, setTouchEndX] = useState<number | null>(null);
     const [deleting, setDeleting] = useState(false);
     const [highlightedTransactionId, setHighlightedTransactionId] = useState<number | null>(null);
     const [showUpdatedBadge, setShowUpdatedBadge] = useState(false);
@@ -543,6 +548,34 @@ export default function Dashboard() {
         }
     };
 
+    // Swipe handlers for summary cards
+    const handleTouchStartCard = (e: React.TouchEvent) => {
+        setTouchStartX(e.touches[0].clientX);
+        setTouchEndX(e.touches[0].clientX);
+    };
+
+    const handleTouchMoveCard = (e: React.TouchEvent) => {
+        setTouchEndX(e.touches[0].clientX);
+    };
+
+    const handleTouchEndCard = () => {
+        if (!touchStartX || !touchEndX) return;
+
+        const distance = touchStartX - touchEndX;
+        const threshold = 50;
+
+        if (distance > threshold && activeCardIndex < 2) {
+            // Swipe left - next card
+            setActiveCardIndex(activeCardIndex + 1);
+        } else if (distance < -threshold && activeCardIndex > 0) {
+            // Swipe right - previous card
+            setActiveCardIndex(activeCardIndex - 1);
+        }
+
+        setTouchStartX(null);
+        setTouchEndX(null);
+    };
+
     // Handle delete transaction
     const handleDelete = async (transactionId: number) => {
         if (!token) return;
@@ -723,28 +756,90 @@ export default function Dashboard() {
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24 sm:pb-8 space-y-8">
                 {/* 1. Top Summary Cards */}
-                <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <Card
-                        icon={<FiTrendingUp size={32} />}
-                        label="Total Expenses"
-                        value={formatCurrency(summary?.total_expenses || 0)}
-                        gradient="from-red-500 to-pink-500"
-                        bgGradient="from-red-50 to-pink-50"
-                    />
-                    <Card
-                        icon={<FiDollarSign size={32} />}
-                        label="Total Income"
-                        value={formatCurrency(summary?.total_income || 0)}
-                        gradient="from-green-500 to-emerald-500"
-                        bgGradient="from-green-50 to-emerald-50"
-                    />
-                    <Card
-                        icon={<FiRepeat size={32} />}
-                        label="Recurring Expenses"
-                        value={formatCurrency(summary?.recurring_expenses || 0)}
-                        gradient="from-orange-500 to-amber-500"
-                        bgGradient="from-orange-50 to-amber-50"
-                    />
+                <section>
+                    {/* Desktop: Grid Layout */}
+                    <div className="hidden md:grid grid-cols-3 gap-6">
+                        <Card
+                            icon={<FiTrendingUp size={32} />}
+                            label="Total Expenses"
+                            value={formatCurrency(summary?.total_expenses || 0)}
+                            gradient="from-red-500 to-pink-500"
+                            bgGradient="from-red-50 to-pink-50"
+                        />
+                        <Card
+                            icon={<FiDollarSign size={32} />}
+                            label="Total Income"
+                            value={formatCurrency(summary?.total_income || 0)}
+                            gradient="from-green-500 to-emerald-500"
+                            bgGradient="from-green-50 to-emerald-50"
+                        />
+                        <Card
+                            icon={<FiRepeat size={32} />}
+                            label="Recurring Expenses"
+                            value={formatCurrency(summary?.recurring_expenses || 0)}
+                            gradient="from-orange-500 to-amber-500"
+                            bgGradient="from-orange-50 to-amber-50"
+                        />
+                    </div>
+
+                    {/* Mobile: Swipeable Cards */}
+                    <div className="md:hidden">
+                        <div
+                            className="relative overflow-hidden"
+                            onTouchStart={handleTouchStartCard}
+                            onTouchMove={handleTouchMoveCard}
+                            onTouchEnd={handleTouchEndCard}
+                        >
+                            <div
+                                className="flex transition-transform duration-300 ease-out"
+                                style={{ transform: `translateX(-${activeCardIndex * 100}%)` }}
+                            >
+                                <div className="w-full flex-shrink-0 px-1">
+                                    <Card
+                                        icon={<FiTrendingUp size={32} />}
+                                        label="Total Expenses"
+                                        value={formatCurrency(summary?.total_expenses || 0)}
+                                        gradient="from-red-500 to-pink-500"
+                                        bgGradient="from-red-50 to-pink-50"
+                                    />
+                                </div>
+                                <div className="w-full flex-shrink-0 px-1">
+                                    <Card
+                                        icon={<FiDollarSign size={32} />}
+                                        label="Total Income"
+                                        value={formatCurrency(summary?.total_income || 0)}
+                                        gradient="from-green-500 to-emerald-500"
+                                        bgGradient="from-green-50 to-emerald-50"
+                                    />
+                                </div>
+                                <div className="w-full flex-shrink-0 px-1">
+                                    <Card
+                                        icon={<FiRepeat size={32} />}
+                                        label="Recurring Expenses"
+                                        value={formatCurrency(summary?.recurring_expenses || 0)}
+                                        gradient="from-orange-500 to-amber-500"
+                                        bgGradient="from-orange-50 to-amber-50"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Dot Indicators */}
+                        <div className="flex justify-center gap-2 mt-4">
+                            {[0, 1, 2].map((index) => (
+                                <button
+                                    key={index}
+                                    onClick={() => setActiveCardIndex(index)}
+                                    className={`h-2 rounded-full transition-all duration-300 ${
+                                        activeCardIndex === index
+                                            ? 'w-8 bg-indigo-600'
+                                            : 'w-2 bg-gray-300'
+                                    }`}
+                                    aria-label={`Go to card ${index + 1}`}
+                                />
+                            ))}
+                        </div>
+                    </div>
                 </section>
 
                 {/* 2. Spending Breakdown Chart */}
