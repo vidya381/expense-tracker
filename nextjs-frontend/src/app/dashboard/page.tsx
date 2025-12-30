@@ -564,12 +564,12 @@ export default function Dashboard() {
         const distance = touchStartX - touchEndX;
         const threshold = 50;
 
-        if (distance > threshold && activeCardIndex < 2) {
-            // Swipe left - next card
-            setActiveCardIndex(activeCardIndex + 1);
-        } else if (distance < -threshold && activeCardIndex > 0) {
-            // Swipe right - previous card
-            setActiveCardIndex(activeCardIndex - 1);
+        if (distance > threshold) {
+            // Swipe left - next card (circular)
+            setActiveCardIndex((activeCardIndex + 1) % 3);
+        } else if (distance < -threshold) {
+            // Swipe right - previous card (circular)
+            setActiveCardIndex((activeCardIndex - 1 + 3) % 3);
         }
 
         setTouchStartX(null);
