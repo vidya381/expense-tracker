@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../context/AuthContext';
-import { FiRepeat, FiEdit2, FiTrash2, FiPlus, FiArrowLeft, FiCalendar, FiX, FiHome, FiDollarSign } from 'react-icons/fi';
+import { FiRepeat, FiEdit2, FiTrash2, FiPlus, FiArrowLeft, FiCalendar, FiX, FiHome, FiDollarSign, FiList } from 'react-icons/fi';
 import { format, parseISO } from 'date-fns';
 
 // Calendar date helpers - treat dates as pure calendar days without timezone conversion
@@ -697,7 +697,7 @@ export default function RecurringTransactionsPage() {
 
             {/* Bottom Navigation - Mobile Only */}
             <nav className="sm:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-lg border-t border-gray-200 shadow-2xl z-40">
-                <div className="grid grid-cols-3 h-16">
+                <div className="grid grid-cols-4 h-16">
                     {/* Dashboard */}
                     <button
                         onClick={() => router.push('/dashboard')}
@@ -706,6 +706,16 @@ export default function RecurringTransactionsPage() {
                     >
                         <FiHome className="w-5 h-5" />
                         <span className="text-xs font-medium">Home</span>
+                    </button>
+
+                    {/* Transactions */}
+                    <button
+                        onClick={() => router.push('/transactions')}
+                        className="flex flex-col items-center justify-center gap-1 text-gray-600 hover:text-indigo-600 transition-colors"
+                        aria-label="Transactions"
+                    >
+                        <FiList className="w-5 h-5" />
+                        <span className="text-xs font-medium">Transactions</span>
                     </button>
 
                     {/* Recurring */}

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { FiDollarSign, FiTrendingUp, FiRepeat, FiPlus, FiArrowUp, FiCalendar, FiEdit2, FiTrash2, FiAlertTriangle, FiX, FiBell, FiLogOut, FiHome } from 'react-icons/fi';
+import { FiDollarSign, FiTrendingUp, FiRepeat, FiPlus, FiArrowUp, FiCalendar, FiEdit2, FiTrash2, FiAlertTriangle, FiX, FiBell, FiLogOut, FiHome, FiList } from 'react-icons/fi';
 import { useAuth } from '../../context/AuthContext';
 import { format, parseISO, subMonths } from 'date-fns';
 import TransactionForm from '../../components/TransactionForm';
@@ -1428,7 +1428,7 @@ export default function Dashboard() {
 
             {/* Bottom Navigation - Mobile Only */}
             <nav className="sm:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-lg border-t border-gray-200 shadow-2xl z-40">
-                <div className="grid grid-cols-3 h-16">
+                <div className="grid grid-cols-4 h-16">
                     {/* Dashboard */}
                     <button
                         onClick={() => router.push('/dashboard')}
@@ -1437,6 +1437,16 @@ export default function Dashboard() {
                     >
                         <FiHome className="w-5 h-5" />
                         <span className="text-xs font-medium">Home</span>
+                    </button>
+
+                    {/* Transactions */}
+                    <button
+                        onClick={() => router.push('/transactions')}
+                        className="flex flex-col items-center justify-center gap-1 text-gray-600 hover:text-indigo-600 transition-colors"
+                        aria-label="Transactions"
+                    >
+                        <FiList className="w-5 h-5" />
+                        <span className="text-xs font-medium">Transactions</span>
                     </button>
 
                     {/* Recurring */}
@@ -1458,7 +1468,7 @@ export default function Dashboard() {
                         <FiDollarSign className="w-5 h-5" />
                         <span className="text-xs font-medium">Budgets</span>
                         {budgetAlerts.length > 0 && (
-                            <span className="absolute top-1 right-6 flex items-center justify-center w-4 h-4 text-[10px] font-bold text-white bg-red-500 rounded-full">
+                            <span className="absolute top-1 right-4 flex items-center justify-center w-4 h-4 text-[10px] font-bold text-white bg-red-500 rounded-full">
                                 {budgetAlerts.length}
                             </span>
                         )}
