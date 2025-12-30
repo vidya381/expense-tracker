@@ -45,6 +45,36 @@ function decodeHtmlEntities(text: string): string {
     return doc.documentElement.textContent || text;
 }
 
+// Mini sparkline component for trend visualization
+const MiniSparkline = ({ data, color }: { data: number[]; color: string }) => {
+    if (data.length < 2) return null;
+
+    const max = Math.max(...data);
+    const min = Math.min(...data);
+    const range = max - min || 1;
+    const width = 60;
+    const height = 20;
+
+    const points = data.map((value, index) => {
+        const x = (index / (data.length - 1)) * width;
+        const y = height - ((value - min) / range) * height;
+        return `${x},${y}`;
+    }).join(' ');
+
+    return (
+        <svg width={width} height={height} className="opacity-60">
+            <polyline
+                points={points}
+                fill="none"
+                stroke={color}
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+            />
+        </svg>
+    );
+};
+
 interface SummaryData {
     total_expenses: number;
     total_income: number;
@@ -579,36 +609,6 @@ export default function Dashboard() {
     const openHistoricalModal = (type: 'expenses' | 'income' | 'recurring') => {
         setHistoricalType(type);
         setShowHistoricalModal(true);
-    };
-
-    // Mini sparkline component
-    const MiniSparkline = ({ data, color }: { data: number[]; color: string }) => {
-        if (data.length < 2) return null;
-
-        const max = Math.max(...data);
-        const min = Math.min(...data);
-        const range = max - min || 1;
-        const width = 60;
-        const height = 20;
-
-        const points = data.map((value, index) => {
-            const x = (index / (data.length - 1)) * width;
-            const y = height - ((value - min) / range) * height;
-            return `${x},${y}`;
-        }).join(' ');
-
-        return (
-            <svg width={width} height={height} className="opacity-60">
-                <polyline
-                    points={points}
-                    fill="none"
-                    stroke={color}
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                />
-            </svg>
-        );
     };
 
     // Swipe handlers for summary cards
