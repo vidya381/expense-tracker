@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { FiDollarSign, FiTrendingUp, FiRepeat, FiPlus, FiArrowUp, FiCalendar, FiEdit2, FiTrash2, FiAlertTriangle, FiX, FiBell, FiLogOut } from 'react-icons/fi';
+import { FiDollarSign, FiTrendingUp, FiRepeat, FiPlus, FiArrowUp, FiCalendar, FiEdit2, FiTrash2, FiAlertTriangle, FiX, FiBell, FiLogOut, FiHome } from 'react-icons/fi';
 import { useAuth } from '../../context/AuthContext';
 import { format, parseISO, subMonths } from 'date-fns';
 import TransactionForm from '../../components/TransactionForm';
@@ -675,14 +675,15 @@ export default function Dashboard() {
                                 <span className="sm:hidden">Expenses</span>
                             </h1>
                         </div>
-                        <div className="flex items-center gap-2 sm:gap-3">
+                        {/* Desktop Navigation - Hidden on Mobile */}
+                        <div className="hidden sm:flex items-center gap-2 sm:gap-3">
                             <button
                                 onClick={() => router.push('/recurring')}
                                 className="px-3 sm:px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg flex items-center gap-1 sm:gap-2"
                                 aria-label="Recurring"
                             >
                                 <FiRepeat className="w-4 h-4" />
-                                <span className="hidden sm:inline">Recurring</span>
+                                <span>Recurring</span>
                             </button>
                             <button
                                 onClick={() => router.push('/budgets')}
@@ -690,7 +691,7 @@ export default function Dashboard() {
                                 aria-label="Budgets"
                             >
                                 <FiDollarSign className="w-4 h-4" />
-                                <span className="hidden sm:inline">Budgets</span>
+                                <span>Budgets</span>
                                 {budgetAlerts.length > 0 && (
                                     <span className="absolute -top-1 -right-1 flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red-500 rounded-full border-2 border-white animate-pulse">
                                         {budgetAlerts.length}
@@ -699,18 +700,28 @@ export default function Dashboard() {
                             </button>
                             <button
                                 onClick={logout}
-                                className="flex items-center gap-2 px-3 sm:px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 rounded-lg shadow-sm transition-all duration-200 sm:bg-none sm:from-transparent sm:to-transparent sm:text-gray-700 sm:hover:text-indigo-600 sm:shadow-none"
+                                className="flex items-center gap-2 px-3 sm:px-4 py-2 text-sm font-medium text-gray-700 hover:text-indigo-600 transition-colors duration-200"
                                 aria-label="Logout"
                             >
                                 <FiLogOut className="w-4 h-4" />
-                                <span className="hidden sm:inline">Logout</span>
+                                <span>Logout</span>
+                            </button>
+                        </div>
+                        {/* Mobile Logout Only */}
+                        <div className="sm:hidden">
+                            <button
+                                onClick={logout}
+                                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 hover:text-indigo-600 transition-colors duration-200"
+                                aria-label="Logout"
+                            >
+                                <FiLogOut className="w-4 h-4" />
                             </button>
                         </div>
                     </div>
                 </div>
             </header>
 
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-24 sm:pb-8 space-y-8">
                 {/* 1. Top Summary Cards */}
                 <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <Card
@@ -1405,6 +1416,55 @@ export default function Dashboard() {
                     </div>
                 </div>
             )}
+
+            {/* Floating Action Button (FAB) - Mobile Only */}
+            <button
+                onClick={() => setShowTransactionModal(true)}
+                className="sm:hidden fixed bottom-20 right-4 w-14 h-14 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 rounded-full shadow-2xl flex items-center justify-center z-50 transition-all duration-300 active:scale-95 hover:shadow-indigo-500/50"
+                aria-label="Add Transaction"
+            >
+                <FiPlus className="w-7 h-7 text-white" />
+            </button>
+
+            {/* Bottom Navigation - Mobile Only */}
+            <nav className="sm:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-lg border-t border-gray-200 shadow-2xl z-40">
+                <div className="grid grid-cols-3 h-16">
+                    {/* Dashboard */}
+                    <button
+                        onClick={() => router.push('/dashboard')}
+                        className="flex flex-col items-center justify-center gap-1 text-indigo-600 transition-colors"
+                        aria-label="Dashboard"
+                    >
+                        <FiHome className="w-5 h-5" />
+                        <span className="text-xs font-medium">Home</span>
+                    </button>
+
+                    {/* Recurring */}
+                    <button
+                        onClick={() => router.push('/recurring')}
+                        className="flex flex-col items-center justify-center gap-1 text-gray-600 hover:text-indigo-600 transition-colors"
+                        aria-label="Recurring"
+                    >
+                        <FiRepeat className="w-5 h-5" />
+                        <span className="text-xs font-medium">Recurring</span>
+                    </button>
+
+                    {/* Budgets */}
+                    <button
+                        onClick={() => router.push('/budgets')}
+                        className="flex flex-col items-center justify-center gap-1 text-gray-600 hover:text-indigo-600 transition-colors relative"
+                        aria-label="Budgets"
+                    >
+                        <FiDollarSign className="w-5 h-5" />
+                        <span className="text-xs font-medium">Budgets</span>
+                        {budgetAlerts.length > 0 && (
+                            <span className="absolute top-1 right-6 flex items-center justify-center w-4 h-4 text-[10px] font-bold text-white bg-red-500 rounded-full">
+                                {budgetAlerts.length}
+                            </span>
+                        )}
+                    </button>
+                </div>
+            </nav>
         </div>
     );
 }

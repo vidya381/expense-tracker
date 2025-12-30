@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../context/AuthContext';
-import { FiRepeat, FiEdit2, FiTrash2, FiPlus, FiArrowLeft, FiCalendar, FiX } from 'react-icons/fi';
+import { FiRepeat, FiEdit2, FiTrash2, FiPlus, FiArrowLeft, FiCalendar, FiX, FiHome, FiDollarSign } from 'react-icons/fi';
 import { format, parseISO } from 'date-fns';
 
 // Calendar date helpers - treat dates as pure calendar days without timezone conversion
@@ -316,7 +316,7 @@ export default function RecurringTransactionsPage() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+        <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 pb-20 sm:pb-0">
             {/* Header */}
             <header className="bg-white/80 backdrop-blur-sm border-b border-gray-200/50 shadow-sm sticky top-0 z-40">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
@@ -694,6 +694,41 @@ export default function RecurringTransactionsPage() {
                     </div>
                 </div>
             )}
+
+            {/* Bottom Navigation - Mobile Only */}
+            <nav className="sm:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-lg border-t border-gray-200 shadow-2xl z-40">
+                <div className="grid grid-cols-3 h-16">
+                    {/* Dashboard */}
+                    <button
+                        onClick={() => router.push('/dashboard')}
+                        className="flex flex-col items-center justify-center gap-1 text-gray-600 hover:text-indigo-600 transition-colors"
+                        aria-label="Dashboard"
+                    >
+                        <FiHome className="w-5 h-5" />
+                        <span className="text-xs font-medium">Home</span>
+                    </button>
+
+                    {/* Recurring */}
+                    <button
+                        onClick={() => router.push('/recurring')}
+                        className="flex flex-col items-center justify-center gap-1 text-indigo-600 transition-colors"
+                        aria-label="Recurring"
+                    >
+                        <FiRepeat className="w-5 h-5" />
+                        <span className="text-xs font-medium">Recurring</span>
+                    </button>
+
+                    {/* Budgets */}
+                    <button
+                        onClick={() => router.push('/budgets')}
+                        className="flex flex-col items-center justify-center gap-1 text-gray-600 hover:text-indigo-600 transition-colors"
+                        aria-label="Budgets"
+                    >
+                        <FiDollarSign className="w-5 h-5" />
+                        <span className="text-xs font-medium">Budgets</span>
+                    </button>
+                </div>
+            </nav>
         </div>
     );
 }
