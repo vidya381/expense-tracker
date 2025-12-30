@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/vidya381/expense-tracker-backend/constants"
@@ -31,6 +32,10 @@ func AddBudget(ctx context.Context, db *sql.DB, budget models.Budget) error {
 		 VALUES ($1, $2, $3, $4, $5)`,
 		budget.UserID, budget.CategoryID, budget.Amount, period, budget.AlertThreshold)
 	if err != nil {
+		// Check for duplicate key constraint violation (PostgreSQL error code 23505)
+		if strings.Contains(err.Error(), "duplicate key") || strings.Contains(err.Error(), "23505") {
+			return fmt.Errorf("budget already exists for this category and period")
+		}
 		return fmt.Errorf("failed to insert budget: %w", err)
 	}
 	return nil
