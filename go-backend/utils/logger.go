@@ -16,15 +16,35 @@ func InitLogger() {
 	if env == "production" {
 		// JSON format for production (easier to parse by log aggregators)
 		handler = slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-			Level: slog.LevelInfo,
+			Level: slog.LevelDebug, // Changed to Debug for more verbose logging
 		})
 	} else {
 		// Text format for development (more readable)
 		handler = slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-			Level: slog.LevelInfo,
+			Level: slog.LevelDebug, // Changed to Debug for more verbose logging
 		})
 	}
 
 	Logger = slog.New(handler)
 	slog.SetDefault(Logger)
+}
+
+// LogInfo logs an info level message with optional key-value pairs
+func LogInfo(msg string, args ...any) {
+	slog.Info(msg, args...)
+}
+
+// LogDebug logs a debug level message with optional key-value pairs
+func LogDebug(msg string, args ...any) {
+	slog.Debug(msg, args...)
+}
+
+// LogError logs an error level message with optional key-value pairs
+func LogError(msg string, args ...any) {
+	slog.Error(msg, args...)
+}
+
+// LogWarn logs a warning level message with optional key-value pairs
+func LogWarn(msg string, args ...any) {
+	slog.Warn(msg, args...)
 }

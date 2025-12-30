@@ -5,7 +5,6 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
-	"log"
 	"log/slog"
 	"net/http"
 	"net/mail"
@@ -183,6 +182,11 @@ func getDBConnURL() string {
 
 // Handles user registration via POST request (expects 'username', 'email', 'password')
 func registerHandler(w http.ResponseWriter, r *http.Request) {
+	slog.Info("registerHandler called",
+		"method", r.Method,
+		"remoteAddr", r.RemoteAddr,
+		"contentType", r.Header.Get("Content-Type"))
+
 	if r.Method != http.MethodPost {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -196,6 +200,8 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 	username := strings.TrimSpace(r.FormValue("username"))
 	email := strings.TrimSpace(r.FormValue("email"))
 	password := r.FormValue("password")
+
+	slog.Info("Register request received", "username", username, "email", email)
 
 	if username == "" {
 		w.Header().Set("Content-Type", "application/json")
@@ -254,24 +260,35 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	slog.Info("Calling RegisterUser", "username", username, "email", email)
 	err := handlers.RegisterUser(r.Context(), db, username, email, password)
+
+	slog.Info("RegisterUser returned", "error", err)
 	w.Header().Set("Content-Type", "application/json")
 
 	switch err {
 	case nil:
+		slog.Info("Sending success response for registration", "username", username)
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]interface{}{"success": true, "message": "User registered successfully!"})
+		encodeErr := json.NewEncoder(w).Encode(map[string]interface{}{"success": true, "message": "User registered successfully!"})
+		if encodeErr != nil {
+			slog.Error("Failed to encode registration success response", "error", encodeErr)
+		} else {
+			slog.Info("Registration success response sent", "username", username)
+		}
 		return
 	case handlers.ErrEmailExists:
+		slog.Info("Registration failed: email exists", "email", email)
 		w.WriteHeader(http.StatusConflict)
 		json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "error": "This email is already registered."})
 		return
 	case handlers.ErrUsernameExists:
+		slog.Info("Registration failed: username exists", "username", username)
 		w.WriteHeader(http.StatusConflict)
 		json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "error": "This username is already taken."})
 		return
 	default:
-		log.Printf("Registration error: %v", err)
+		slog.Error("Registration error", "error", err, "username", username, "email", email)
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "error": "Registration failed. Please try again later."})
 		return
@@ -281,6 +298,11 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 // Handles user login via POST request (expects 'email', 'password')
 // Returns a JWT token if credentials are valid
 func loginHandler(w http.ResponseWriter, r *http.Request) {
+	slog.Info("loginHandler called",
+		"method", r.Method,
+		"remoteAddr", r.RemoteAddr,
+		"contentType", r.Header.Get("Content-Type"))
+
 	if r.Method != http.MethodPost {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -294,7 +316,10 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	email := strings.TrimSpace(r.FormValue("email"))
 	password := r.FormValue("password")
 
+	slog.Info("Login request received", "email", email)
+
 	if email == "" || password == "" {
+		slog.Info("Login validation failed: missing email or password")
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]interface{}{
@@ -304,20 +329,30 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	slog.Info("Calling LoginUser", "email", email)
 	token, err := handlers.LoginUser(r.Context(), db, email, password, jwtSecret)
+
+	slog.Info("LoginUser returned", "error", err, "tokenLength", len(token))
 	w.Header().Set("Content-Type", "application/json")
 
 	switch err {
 	case nil:
+		slog.Info("Sending success response for login", "email", email, "tokenLength", len(token))
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]interface{}{"success": true, "token": token})
+		encodeErr := json.NewEncoder(w).Encode(map[string]interface{}{"success": true, "token": token})
+		if encodeErr != nil {
+			slog.Error("Failed to encode login success response", "error", encodeErr)
+		} else {
+			slog.Info("Login success response sent", "email", email)
+		}
 		return
 	case handlers.ErrUserNotFound, handlers.ErrInvalidCredentials:
+		slog.Info("Login failed: invalid credentials", "email", email)
 		w.WriteHeader(http.StatusUnauthorized)
 		json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "error": "Email or password is incorrect."})
 		return
 	default:
-		log.Printf("Registration error: %v", err)
+		slog.Error("Login error", "error", err, "email", email)
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "error": "Login failed. Please try again later."})
 		return
