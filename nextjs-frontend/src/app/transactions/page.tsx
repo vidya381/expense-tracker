@@ -50,6 +50,11 @@ export default function TransactionsPage() {
     const [deleteConfirm, setDeleteConfirm] = useState<Transaction | null>(null);
     const [deleting, setDeleting] = useState(false);
 
+    // Swipe gesture state
+    const [swipedCard, setSwipedCard] = useState<number | null>(null);
+    const [touchStart, setTouchStart] = useState<number | null>(null);
+    const [touchCurrent, setTouchCurrent] = useState<number | null>(null);
+
     const scrollContainerRef = useRef<HTMLDivElement>(null);
 
     // Auth check
@@ -250,6 +255,53 @@ export default function TransactionsPage() {
         }
     };
 
+    // Swipe gesture handlers
+    const handleTouchStart = (e: React.TouchEvent, transactionId: number) => {
+        setTouchStart(e.touches[0].clientX);
+        setSwipedCard(transactionId);
+    };
+
+    const handleTouchMove = (e: React.TouchEvent) => {
+        if (touchStart === null) return;
+        setTouchCurrent(e.touches[0].clientX);
+    };
+
+    const handleTouchEnd = (transactionId: number) => {
+        if (touchStart === null || touchCurrent === null) {
+            setTouchStart(null);
+            setTouchCurrent(null);
+            return;
+        }
+
+        const diff = touchStart - touchCurrent;
+        const threshold = 50;
+
+        // Swipe left - show delete
+        if (diff > threshold) {
+            setSwipedCard(transactionId);
+        }
+        // Swipe right - close
+        else if (diff < -threshold) {
+            setSwipedCard(null);
+        }
+        // Not enough swipe - reset
+        else {
+            setSwipedCard(null);
+        }
+
+        setTouchStart(null);
+        setTouchCurrent(null);
+    };
+
+    const getSwipeOffset = (transactionId: number) => {
+        if (swipedCard !== transactionId || touchStart === null) return 0;
+        if (touchCurrent === null) return 0;
+
+        const diff = touchCurrent - touchStart;
+        // Limit swipe to -100px (left) and 100px (right)
+        return Math.max(-100, Math.min(100, diff));
+    };
+
     const decodeHtmlEntities = (text: string) => {
         const textarea = document.createElement('textarea');
         textarea.innerHTML = text;
@@ -410,41 +462,65 @@ export default function TransactionsPage() {
                                         <div
                                             key={tx.id}
                                             data-transaction-date={tx.date}
-                                            className="group px-2 sm:px-4 py-1.5 sm:py-3 bg-white hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 transition-colors"
+                                            className="group sm:px-4 sm:py-3 bg-white hover:bg-gradient-to-r hover:from-indigo-50 hover:to-purple-50 transition-colors relative overflow-hidden"
                                         >
-                                            {/* Mobile Layout */}
-                                            <div className="sm:hidden">
-                                                <div className="flex items-start justify-between gap-2 mb-1">
-                                                    <div className="flex-1 min-w-0">
-                                                        <h4 className="text-xs font-semibold text-gray-900 truncate mb-0.5">
-                                                            {tx.description ? decodeHtmlEntities(tx.description) : 'No description'}
-                                                        </h4>
-                                                        <div className="flex items-center gap-1.5 flex-wrap">
-                                                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-indigo-100 text-indigo-700">
-                                                                {decodeHtmlEntities(tx.category)}
-                                                            </span>
-                                                            <span className="text-[10px] text-gray-500">
-                                                                {formatCalendarDate(tx.date)}
-                                                            </span>
+                                            {/* Mobile Layout with Swipe */}
+                                            <div className="sm:hidden relative">
+                                                {/* Action Buttons Background (Revealed on Swipe) */}
+                                                <div className="absolute inset-0 flex items-center justify-end pr-2 bg-gradient-to-l from-red-500 to-red-600">
+                                                    <button
+                                                        onClick={() => {
+                                                            setDeleteConfirm(tx);
+                                                            setSwipedCard(null);
+                                                        }}
+                                                        className="px-4 py-2 text-white font-medium text-sm"
+                                                    >
+                                                        <FiTrash2 className="w-5 h-5" />
+                                                    </button>
+                                                </div>
+
+                                                {/* Swipeable Card Content */}
+                                                <div
+                                                    className="relative bg-white px-2 py-1.5 transition-transform duration-200"
+                                                    style={{
+                                                        transform: swipedCard === tx.id && touchStart !== null && touchCurrent !== null
+                                                            ? `translateX(${getSwipeOffset(tx.id)}px)`
+                                                            : swipedCard === tx.id
+                                                                ? 'translateX(-80px)'
+                                                                : 'translateX(0)'
+                                                    }}
+                                                    onTouchStart={(e) => handleTouchStart(e, tx.id)}
+                                                    onTouchMove={handleTouchMove}
+                                                    onTouchEnd={() => handleTouchEnd(tx.id)}
+                                                >
+                                                    <div className="flex items-start justify-between gap-2">
+                                                        <div className="flex-1 min-w-0">
+                                                            <h4 className="text-xs font-semibold text-gray-900 truncate mb-0.5">
+                                                                {tx.description ? decodeHtmlEntities(tx.description) : 'No description'}
+                                                            </h4>
+                                                            <div className="flex items-center gap-1.5 flex-wrap">
+                                                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-indigo-100 text-indigo-700">
+                                                                    {decodeHtmlEntities(tx.category)}
+                                                                </span>
+                                                                <span className="text-[10px] text-gray-500">
+                                                                    {formatCalendarDate(tx.date)}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                        <div className={`text-sm font-bold flex-shrink-0 ${isExpense ? 'text-red-600' : 'text-green-600'}`}>
+                                                            {isExpense ? '-' : '+'}{formatCurrency(Math.abs(tx.amount))}
                                                         </div>
                                                     </div>
-                                                    <div className={`text-sm font-bold flex-shrink-0 ${isExpense ? 'text-red-600' : 'text-green-600'}`}>
-                                                        {isExpense ? '-' : '+'}{formatCurrency(Math.abs(tx.amount))}
-                                                    </div>
-                                                </div>
-                                                <div className="flex items-center gap-1.5">
+
+                                                    {/* Edit button - tap to edit */}
                                                     <button
-                                                        onClick={() => handleEdit(tx.id)}
-                                                        className="flex-1 px-2 py-1 rounded-lg text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition-all duration-150"
-                                                    >
-                                                        Edit
-                                                    </button>
-                                                    <button
-                                                        onClick={() => setDeleteConfirm(tx)}
-                                                        className="flex-1 px-2 py-1 rounded-lg text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 transition-all duration-150"
-                                                    >
-                                                        Delete
-                                                    </button>
+                                                        onClick={() => {
+                                                            handleEdit(tx.id);
+                                                            setSwipedCard(null);
+                                                        }}
+                                                        className="absolute inset-0 w-full h-full"
+                                                        aria-label="Tap to edit, swipe left to delete"
+                                                    />
                                                 </div>
                                             </div>
 
