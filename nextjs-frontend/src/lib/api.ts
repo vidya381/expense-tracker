@@ -16,7 +16,10 @@ export async function apiFetch(
         headers.set('Authorization', `Bearer ${token}`);
     }
 
-    const res = await fetch(url, options);
+    const res = await fetch(url, {
+        ...options,
+        headers,
+    });
 
     if (!res.ok) {
         if (res.status === 401) {
