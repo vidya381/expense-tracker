@@ -10,20 +10,22 @@ import (
 
 // IPRateLimiter tracks rate limiters per IP address
 type IPRateLimiter struct {
-	ips map[string]*rate.Limiter
-	mu  *sync.RWMutex
-	r   rate.Limit
-	b   int
+	ips        map[string]*rate.Limiter
+	lastAccess map[string]time.Time
+	mu         *sync.RWMutex
+	r          rate.Limit
+	b          int
 }
 
 // NewIPRateLimiter creates a new IP-based rate limiter
 // r = requests per second, b = burst size
 func NewIPRateLimiter(r rate.Limit, b int) *IPRateLimiter {
 	return &IPRateLimiter{
-		ips: make(map[string]*rate.Limiter),
-		mu:  &sync.RWMutex{},
-		r:   r,
-		b:   b,
+		ips:        make(map[string]*rate.Limiter),
+		lastAccess: make(map[string]time.Time),
+		mu:         &sync.RWMutex{},
+		r:          r,
+		b:          b,
 	}
 }
 
@@ -38,6 +40,9 @@ func (i *IPRateLimiter) GetLimiter(ip string) *rate.Limiter {
 		i.ips[ip] = limiter
 	}
 
+	// Track last access time
+	i.lastAccess[ip] = time.Now()
+
 	return limiter
 }
 
@@ -47,8 +52,14 @@ func (i *IPRateLimiter) CleanupOldEntries() {
 	go func() {
 		for range ticker.C {
 			i.mu.Lock()
-			// In production, you'd track last access time and remove old entries
-			// For simplicity, we're keeping all entries
+			// Remove entries not accessed in last 5 minutes
+			cutoff := time.Now().Add(-5 * time.Minute)
+			for ip, lastAccess := range i.lastAccess {
+				if lastAccess.Before(cutoff) {
+					delete(i.ips, ip)
+					delete(i.lastAccess, ip)
+				}
+			}
 			i.mu.Unlock()
 		}
 	}()
