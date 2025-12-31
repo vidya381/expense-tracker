@@ -116,21 +116,30 @@ func main() {
 	mux.HandleFunc("/budget/delete", middleware.RequireHTTPS(middleware.SecurityHeaders(rateLimitAPI(middleware.RequireAuth(jwtSecret, deleteBudgetHandler)))))
 	mux.HandleFunc("/budget/alerts", middleware.RequireHTTPS(middleware.SecurityHeaders(rateLimitAPI(middleware.RequireAuth(jwtSecret, budgetAlertsHandler)))))
 
-	// Get CORS origin from environment or use default
-	corsOrigin := os.Getenv("CORS_ORIGIN")
-	if corsOrigin == "" {
-		corsOrigin = "http://localhost:3000"
-		slog.Warn("CORS_ORIGIN not set, using default localhost:3000. Set CORS_ORIGIN in production.")
-	}
+	// Get CORS origins from environment (comma-separated) or use default
+	corsOriginEnv := os.Getenv("CORS_ORIGIN")
+	var allowedOrigins []string
 
-	// Validate CORS origin format
-	if !strings.HasPrefix(corsOrigin, "http://") && !strings.HasPrefix(corsOrigin, "https://") {
-		slog.Error("Invalid CORS_ORIGIN format, must start with http:// or https://", "origin", corsOrigin)
-		panic("Invalid CORS_ORIGIN configuration")
+	if corsOriginEnv == "" {
+		allowedOrigins = []string{"http://localhost:3000"}
+		slog.Warn("CORS_ORIGIN not set, using default localhost:3000. Set CORS_ORIGIN in production.")
+	} else {
+		// Support comma-separated multiple origins
+		origins := strings.Split(corsOriginEnv, ",")
+		for _, origin := range origins {
+			origin = strings.TrimSpace(origin)
+			// Validate each origin format
+			if !strings.HasPrefix(origin, "http://") && !strings.HasPrefix(origin, "https://") {
+				slog.Error("Invalid CORS_ORIGIN format, must start with http:// or https://", "origin", origin)
+				panic("Invalid CORS_ORIGIN configuration")
+			}
+			allowedOrigins = append(allowedOrigins, origin)
+		}
+		slog.Info("CORS origins configured", "origins", allowedOrigins)
 	}
 
 	corsHandler := cors.New(cors.Options{
-		AllowedOrigins:   []string{corsOrigin},
+		AllowedOrigins:   allowedOrigins,
 		AllowedHeaders:   []string{"Authorization", "Content-Type"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowCredentials: true,
