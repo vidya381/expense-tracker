@@ -113,6 +113,13 @@ func main() {
 	corsOrigin := os.Getenv("CORS_ORIGIN")
 	if corsOrigin == "" {
 		corsOrigin = "http://localhost:3000"
+		slog.Warn("CORS_ORIGIN not set, using default localhost:3000. Set CORS_ORIGIN in production.")
+	}
+
+	// Validate CORS origin format
+	if !strings.HasPrefix(corsOrigin, "http://") && !strings.HasPrefix(corsOrigin, "https://") {
+		slog.Error("Invalid CORS_ORIGIN format, must start with http:// or https://", "origin", corsOrigin)
+		panic("Invalid CORS_ORIGIN configuration")
 	}
 
 	corsHandler := cors.New(cors.Options{
