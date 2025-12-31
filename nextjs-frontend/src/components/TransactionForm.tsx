@@ -291,6 +291,7 @@ export default function TransactionForm({
                             }
                         }}
                         disabled={loadingSubmit || loadingCategories}
+                        maxLength={100}
                         className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 disabled:bg-gray-50 disabled:cursor-not-allowed bg-white text-gray-900 placeholder:text-gray-400"
                         autoComplete="off"
                         placeholder="Type or select a category"
@@ -411,6 +412,7 @@ export default function TransactionForm({
                         value={description}
                         onChange={(e) => setDescription(e.target.value)}
                         disabled={loadingSubmit}
+                        maxLength={500}
                         className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 disabled:bg-gray-50 disabled:cursor-not-allowed bg-white text-gray-900 placeholder:text-gray-400"
                         placeholder="Add a description"
                     />
