@@ -93,20 +93,23 @@ func ProcessRecurringTransactions(db *sql.DB) {
 
 		dueDates := GetAllMissedDueDates(rt, now)
 		if len(dueDates) > 0 {
-			ctx, cancel := utils.DBContext(nil)
+			// Create transactions with fresh context for each batch
 			for _, dueDate := range dueDates {
+				ctx, cancel := utils.DBContext(nil)
 				_, err := db.ExecContext(ctx,
 					`INSERT INTO transactions (user_id, category_id, amount, description, date)
 					VALUES ($1, $2, $3, $4, $5)`,
 					rt.UserID, rt.CategoryID, rt.Amount, rt.Description, dueDate.Format("2006-01-02"),
 				)
+				cancel()
 				if err != nil {
 					slog.Error("Recurring jobs: error creating transaction", "error", err, "recurring_id", rt.ID)
 					continue
 				}
 			}
-			// Update last_occurrence to latest due date
+			// Update last_occurrence to latest due date with fresh context
 			latestDue := dueDates[len(dueDates)-1]
+			ctx, cancel := utils.DBContext(nil)
 			_, err = db.ExecContext(ctx,
 				`UPDATE recurring_transactions SET last_occurrence = $1 WHERE id = $2`,
 				latestDue.Format("2006-01-02"), rt.ID)
