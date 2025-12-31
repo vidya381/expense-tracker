@@ -71,6 +71,8 @@ func ProcessRecurringTransactions(db *sql.DB) {
 	// Use UTC and truncate to midnight for consistent date-only comparison across timezones
 	now := time.Now().UTC().Truncate(24 * time.Hour)
 
+	var totalProcessed, totalFailed, totalCreated int
+
 	for rows.Next() {
 		var rt models.RecurringTransaction
 		var lastOccurrence sql.NullTime
@@ -90,6 +92,8 @@ func ProcessRecurringTransactions(db *sql.DB) {
 
 		dueDates := GetAllMissedDueDates(rt, now)
 		if len(dueDates) > 0 {
+			totalProcessed++
+			var failedCount int
 			// Create transactions with fresh context for each batch
 			for _, dueDate := range dueDates {
 				ctx, cancel := utils.DBContext(nil)
@@ -100,10 +104,17 @@ func ProcessRecurringTransactions(db *sql.DB) {
 				)
 				cancel()
 				if err != nil {
-					slog.Error("Recurring jobs: error creating transaction", "error", err, "recurring_id", rt.ID)
+					slog.Error("Recurring jobs: error creating transaction", "error", err, "recurring_id", rt.ID, "date", dueDate.Format("2006-01-02"))
+					failedCount++
 					continue
 				}
+				totalCreated++
 			}
+
+			if failedCount > 0 {
+				totalFailed++
+			}
+
 			// Update last_occurrence to latest due date with fresh context
 			latestDue := dueDates[len(dueDates)-1]
 			ctx, cancel := utils.DBContext(nil)
@@ -117,6 +128,20 @@ func ProcessRecurringTransactions(db *sql.DB) {
 				slog.Info("Updated recurring transaction", "recurring_id", rt.ID, "last_occurrence", latestDue.Format("2006-01-02"))
 			}
 		}
+	}
+
+	// Log summary of job execution
+	if totalProcessed > 0 {
+		slog.Info("Recurring job completed",
+			"processed", totalProcessed,
+			"created", totalCreated,
+			"failed_rules", totalFailed)
+	}
+
+	if totalFailed > 0 {
+		slog.Warn("Recurring job had failures",
+			"failed_rules", totalFailed,
+			"total_processed", totalProcessed)
 	}
 }
 
