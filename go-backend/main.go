@@ -247,16 +247,6 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	parts := strings.Split(email, "@")
-	if len(parts) != 2 || !strings.Contains(parts[1], ".") {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": false,
-			"error":   "Invalid email format",
-		})
-		return
-	}
 	if _, err := mail.ParseAddress(email); err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
