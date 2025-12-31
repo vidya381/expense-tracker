@@ -713,12 +713,12 @@ func deleteTransactionHandler(w http.ResponseWriter, r *http.Request) {
 func summaryTotalsHandler(w http.ResponseWriter, r *http.Request) {
 	userID, ok := middleware.GetUserID(r)
 	if !ok {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		utils.RespondWithUnauthorized(w, "")
 		return
 	}
 	expenses, income, err := handlers.GetTotals(r.Context(), db, userID)
 	if err != nil {
-		http.Error(w, "Error: "+err.Error(), http.StatusInternalServerError)
+		utils.RespondWithInternalError(w, err, "Summary totals")
 		return
 	}
 	json.NewEncoder(w).Encode(map[string]float64{
@@ -731,12 +731,12 @@ func summaryTotalsHandler(w http.ResponseWriter, r *http.Request) {
 func summaryMonthlyHandler(w http.ResponseWriter, r *http.Request) {
 	userID, ok := middleware.GetUserID(r)
 	if !ok {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		utils.RespondWithUnauthorized(w, "")
 		return
 	}
 	summary, err := handlers.GetMonthlyTotals(r.Context(), db, userID)
 	if err != nil {
-		http.Error(w, "Error: "+err.Error(), http.StatusInternalServerError)
+		utils.RespondWithInternalError(w, err, "Summary monthly")
 		return
 	}
 	json.NewEncoder(w).Encode(summary)
@@ -746,12 +746,12 @@ func summaryMonthlyHandler(w http.ResponseWriter, r *http.Request) {
 func summaryCurrentMonthHandler(w http.ResponseWriter, r *http.Request) {
 	userID, ok := middleware.GetUserID(r)
 	if !ok {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		utils.RespondWithUnauthorized(w, "")
 		return
 	}
 	summary, err := handlers.GetCurrentMonthSummary(r.Context(), db, userID)
 	if err != nil {
-		http.Error(w, "Error: "+err.Error(), http.StatusInternalServerError)
+		utils.RespondWithInternalError(w, err, "Summary current month")
 		return
 	}
 	json.NewEncoder(w).Encode(summary)
@@ -761,14 +761,14 @@ func summaryCurrentMonthHandler(w http.ResponseWriter, r *http.Request) {
 func summaryCategoryHandler(w http.ResponseWriter, r *http.Request) {
 	userID, ok := middleware.GetUserID(r)
 	if !ok {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		utils.RespondWithUnauthorized(w, "")
 		return
 	}
 	from := r.URL.Query().Get("from")
 	to := r.URL.Query().Get("to")
 	result, err := handlers.GetCategoryBreakdown(r.Context(), db, userID, from, to)
 	if err != nil {
-		http.Error(w, "Error: "+err.Error(), http.StatusInternalServerError)
+		utils.RespondWithInternalError(w, err, "Summary category")
 		return
 	}
 	json.NewEncoder(w).Encode(result)
@@ -778,13 +778,13 @@ func summaryCategoryHandler(w http.ResponseWriter, r *http.Request) {
 func summaryGroupHandler(w http.ResponseWriter, r *http.Request) {
 	userID, ok := middleware.GetUserID(r)
 	if !ok {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		utils.RespondWithUnauthorized(w, "")
 		return
 	}
 	granularity := r.URL.Query().Get("by")
 	summary, err := handlers.GetGroupTotals(r.Context(), db, userID, granularity)
 	if err != nil {
-		http.Error(w, "Error: "+err.Error(), http.StatusInternalServerError)
+		utils.RespondWithInternalError(w, err, "Summary group")
 		return
 	}
 	json.NewEncoder(w).Encode(summary)
@@ -794,18 +794,18 @@ func summaryGroupHandler(w http.ResponseWriter, r *http.Request) {
 func summaryCategoryMonthHandler(w http.ResponseWriter, r *http.Request) {
 	userID, ok := middleware.GetUserID(r)
 	if !ok {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		utils.RespondWithUnauthorized(w, "")
 		return
 	}
 	year, _ := strconv.Atoi(r.URL.Query().Get("year"))
 	month, _ := strconv.Atoi(r.URL.Query().Get("month"))
 	if year == 0 || month == 0 {
-		http.Error(w, "year and month required", http.StatusBadRequest)
+		utils.RespondWithValidationError(w, "year and month required")
 		return
 	}
 	result, err := handlers.GetCategoryMonthSummary(r.Context(), db, userID, year, month)
 	if err != nil {
-		http.Error(w, "Error: "+err.Error(), http.StatusInternalServerError)
+		utils.RespondWithInternalError(w, err, "Summary category month")
 		return
 	}
 	json.NewEncoder(w).Encode(result)
@@ -815,12 +815,12 @@ func summaryCategoryMonthHandler(w http.ResponseWriter, r *http.Request) {
 func exportTransactionsHandler(w http.ResponseWriter, r *http.Request) {
 	userID, ok := middleware.GetUserID(r)
 	if !ok {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		utils.RespondWithUnauthorized(w, "")
 		return
 	}
 	transactions, err := handlers.ListTransactions(r.Context(), db, userID)
 	if err != nil {
-		http.Error(w, "Failed to fetch transactions: "+err.Error(), http.StatusInternalServerError)
+		utils.RespondWithInternalError(w, err, "Export transactions")
 		return
 	}
 
@@ -830,7 +830,7 @@ func exportTransactionsHandler(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/csv")
 		writer := csv.NewWriter(w)
 		if err := writer.Write([]string{"ID", "CategoryID", "Amount", "Description", "Date", "CreatedAt"}); err != nil {
-			http.Error(w, "Failed to write CSV header", http.StatusInternalServerError)
+			utils.RespondWithInternalError(w, err, "CSV header write")
 			return
 		}
 		for _, tx := range transactions {
@@ -842,13 +842,13 @@ func exportTransactionsHandler(w http.ResponseWriter, r *http.Request) {
 				tx.Date,
 				tx.CreatedAt,
 			}); err != nil {
-				http.Error(w, "Failed to write CSV row", http.StatusInternalServerError)
+				utils.RespondWithInternalError(w, err, "CSV row write")
 				return
 			}
 		}
 		writer.Flush()
 		if err := writer.Error(); err != nil {
-			http.Error(w, "Failed to flush CSV writer", http.StatusInternalServerError)
+			utils.RespondWithInternalError(w, err, "CSV flush")
 			return
 		}
 		return
@@ -856,7 +856,7 @@ func exportTransactionsHandler(w http.ResponseWriter, r *http.Request) {
 	// Default: JSON
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(transactions); err != nil {
-		http.Error(w, "Failed to encode JSON response", http.StatusInternalServerError)
+		utils.RespondWithInternalError(w, err, "JSON encode")
 		return
 	}
 }
@@ -949,12 +949,12 @@ func addRecurringHandler(w http.ResponseWriter, r *http.Request) {
 func listRecurringHandler(w http.ResponseWriter, r *http.Request) {
 	userID, ok := middleware.GetUserID(r)
 	if !ok {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		utils.RespondWithUnauthorized(w, "")
 		return
 	}
 	recurrings, err := handlers.ListRecurringTransactions(r.Context(), db, userID)
 	if err != nil {
-		http.Error(w, "Failed to list recurring transactions: "+err.Error(), http.StatusInternalServerError)
+		utils.RespondWithInternalError(w, err, "List recurring transactions")
 		return
 	}
 	json.NewEncoder(w).Encode(recurrings)
@@ -962,22 +962,22 @@ func listRecurringHandler(w http.ResponseWriter, r *http.Request) {
 
 func editRecurringHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "Only POST allowed", http.StatusMethodNotAllowed)
+		utils.RespondWithMethodNotAllowed(w, "POST")
 		return
 	}
 	userID, ok := middleware.GetUserID(r)
 	if !ok {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		utils.RespondWithUnauthorized(w, "")
 		return
 	}
 	id, err := strconv.Atoi(r.FormValue("id"))
 	if err != nil {
-		http.Error(w, "Valid id is required", http.StatusBadRequest)
+		utils.RespondWithValidationError(w, "Valid id is required")
 		return
 	}
 	amount, err := strconv.ParseFloat(r.FormValue("amount"), 64)
 	if err != nil || amount <= 0 {
-		http.Error(w, "Amount must be a positive number", http.StatusBadRequest)
+		utils.RespondWithValidationError(w, "Amount must be a positive number")
 		return
 	}
 	description := r.FormValue("description")
@@ -986,7 +986,7 @@ func editRecurringHandler(w http.ResponseWriter, r *http.Request) {
 
 	err = handlers.EditRecurringTransaction(r.Context(), db, userID, id, amount, description, startDate, recurrence)
 	if err != nil {
-		http.Error(w, "Failed to edit recurring transaction: "+err.Error(), http.StatusInternalServerError)
+		utils.RespondWithInternalError(w, err, "Edit recurring transaction")
 		return
 	}
 	w.Write([]byte("Recurring transaction updated!"))
@@ -994,22 +994,22 @@ func editRecurringHandler(w http.ResponseWriter, r *http.Request) {
 
 func deleteRecurringHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "Only POST allowed", http.StatusMethodNotAllowed)
+		utils.RespondWithMethodNotAllowed(w, "POST")
 		return
 	}
 	userID, ok := middleware.GetUserID(r)
 	if !ok {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		utils.RespondWithUnauthorized(w, "")
 		return
 	}
 	id, err := strconv.Atoi(r.FormValue("id"))
 	if err != nil {
-		http.Error(w, "Valid id is required", http.StatusBadRequest)
+		utils.RespondWithValidationError(w, "Valid id is required")
 		return
 	}
 	err = handlers.DeleteRecurringTransaction(r.Context(), db, id, userID)
 	if err != nil {
-		http.Error(w, "Failed to delete recurring transaction: "+err.Error(), http.StatusInternalServerError)
+		utils.RespondWithInternalError(w, err, "Delete recurring transaction")
 		return
 	}
 	w.Write([]byte("Recurring transaction deleted!"))

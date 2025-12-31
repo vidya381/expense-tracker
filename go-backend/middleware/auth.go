@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/vidya381/expense-tracker-backend/utils"
 )
 
 // Key type for setting/retrieving user ID in context
@@ -22,7 +23,7 @@ func RequireAuth(jwtSecret string, next http.HandlerFunc) http.HandlerFunc {
 		// Extract token from Authorization header
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
-			http.Error(w, "Missing or invalid Authorization header", http.StatusUnauthorized)
+			utils.RespondWithUnauthorized(w, "Missing or invalid Authorization header")
 			return
 		}
 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
@@ -37,20 +38,20 @@ func RequireAuth(jwtSecret string, next http.HandlerFunc) http.HandlerFunc {
 		})
 
 		if err != nil || !token.Valid {
-			http.Error(w, "Invalid token", http.StatusUnauthorized)
+			utils.RespondWithUnauthorized(w, "Invalid token")
 			return
 		}
 
 		// Extract user ID from claims
 		claims, ok := token.Claims.(jwt.MapClaims)
 		if !ok {
-			http.Error(w, "Invalid token claims", http.StatusUnauthorized)
+			utils.RespondWithUnauthorized(w, "Invalid token claims")
 			return
 		}
 
 		userIDFloat, ok := claims["user_id"].(float64)
 		if !ok {
-			http.Error(w, "Invalid user_id in token", http.StatusUnauthorized)
+			utils.RespondWithUnauthorized(w, "Invalid user_id in token")
 			return
 		}
 		userID := int(userIDFloat)

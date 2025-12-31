@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vidya381/expense-tracker-backend/utils"
 	"golang.org/x/time/rate"
 )
 
@@ -105,7 +106,7 @@ func RateLimitMiddleware(limiter *IPRateLimiter) func(http.HandlerFunc) http.Han
 
 			limiter := limiter.GetLimiter(ip)
 			if !limiter.Allow() {
-				http.Error(w, "Rate limit exceeded. Please try again later.", http.StatusTooManyRequests)
+				utils.RespondWithError(w, http.StatusTooManyRequests, "Rate limit exceeded. Please try again later.")
 				return
 			}
 
