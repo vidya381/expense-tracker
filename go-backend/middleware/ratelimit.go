@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -65,20 +66,42 @@ func (i *IPRateLimiter) CleanupOldEntries() {
 	}()
 }
 
+// getClientIP extracts the real client IP from the request
+func getClientIP(r *http.Request) string {
+	// Check X-Forwarded-For header (set by proxies/load balancers)
+	xff := r.Header.Get("X-Forwarded-For")
+	if xff != "" {
+		// X-Forwarded-For can contain multiple IPs: "client, proxy1, proxy2"
+		// Take the first one (original client IP)
+		ips := strings.Split(xff, ",")
+		if len(ips) > 0 {
+			ip := strings.TrimSpace(ips[0])
+			if ip != "" {
+				return ip
+			}
+		}
+	}
+
+	// Fall back to X-Real-IP header
+	xri := r.Header.Get("X-Real-IP")
+	if xri != "" {
+		return strings.TrimSpace(xri)
+	}
+
+	// Fall back to RemoteAddr
+	ip := r.RemoteAddr
+	// Extract IP without port
+	if idx := strings.LastIndex(ip, ":"); idx != -1 {
+		ip = ip[:idx]
+	}
+	return ip
+}
+
 // RateLimitMiddleware creates a middleware that limits requests per IP
 func RateLimitMiddleware(limiter *IPRateLimiter) func(http.HandlerFunc) http.HandlerFunc {
 	return func(next http.HandlerFunc) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
-			ip := r.RemoteAddr
-			// Extract IP without port
-			if idx := len(ip) - 1; idx >= 0 {
-				for i := idx; i >= 0; i-- {
-					if ip[i] == ':' {
-						ip = ip[:i]
-						break
-					}
-				}
-			}
+			ip := getClientIP(r)
 
 			limiter := limiter.GetLimiter(ip)
 			if !limiter.Allow() {
