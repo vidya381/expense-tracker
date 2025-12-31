@@ -829,23 +829,36 @@ func exportTransactionsHandler(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Disposition", "attachment;filename=transactions.csv")
 		w.Header().Set("Content-Type", "text/csv")
 		writer := csv.NewWriter(w)
-		writer.Write([]string{"ID", "CategoryID", "Amount", "Description", "Date", "CreatedAt"})
+		if err := writer.Write([]string{"ID", "CategoryID", "Amount", "Description", "Date", "CreatedAt"}); err != nil {
+			http.Error(w, "Failed to write CSV header", http.StatusInternalServerError)
+			return
+		}
 		for _, tx := range transactions {
-			writer.Write([]string{
+			if err := writer.Write([]string{
 				strconv.Itoa(tx.ID),
 				strconv.Itoa(tx.CategoryID),
 				fmt.Sprintf("%.2f", tx.Amount),
 				tx.Description,
 				tx.Date,
 				tx.CreatedAt,
-			})
+			}); err != nil {
+				http.Error(w, "Failed to write CSV row", http.StatusInternalServerError)
+				return
+			}
 		}
 		writer.Flush()
+		if err := writer.Error(); err != nil {
+			http.Error(w, "Failed to flush CSV writer", http.StatusInternalServerError)
+			return
+		}
 		return
 	}
 	// Default: JSON
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(transactions)
+	if err := json.NewEncoder(w).Encode(transactions); err != nil {
+		http.Error(w, "Failed to encode JSON response", http.StatusInternalServerError)
+		return
+	}
 }
 
 // User to add a recurring transaction.
