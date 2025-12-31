@@ -76,6 +76,7 @@ func main() {
 	authRateLimiter := middleware.NewIPRateLimiter(
 		rate.Limit(constants.AuthRateLimitPerMinute),
 		constants.AuthRateLimitBurst)
+	authRateLimiter.CleanupOldEntries()
 	rateLimitAuth := middleware.RateLimitMiddleware(authRateLimiter)
 
 	mux := http.NewServeMux()
