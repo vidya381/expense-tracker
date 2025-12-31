@@ -86,8 +86,8 @@ export default function TransactionForm({
                 } else {
                     setError(data.error || 'Failed to load categories');
                 }
-            } catch (e: any) {
-                setError(e.message);
+            } catch (e) {
+                setError(e instanceof Error ? e.message : 'Failed to load categories');
             } finally {
                 setLoadingCategories(false);
             }
@@ -260,8 +260,8 @@ export default function TransactionForm({
                 setShowCategoryTypeInput(false);
             }
             onSuccess();
-        } catch (e: any) {
-            setError(e.message);
+        } catch (e) {
+            setError(e instanceof Error ? e.message : 'An error occurred while saving the transaction');
         } finally {
             setLoadingSubmit(false);
         }
