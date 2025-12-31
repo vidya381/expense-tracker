@@ -52,7 +52,7 @@ export default function EditTransactionPage() {
                     headers: { Authorization: `Bearer ${token}` },
                 });
                 const categoriesData = await categoriesRes.json();
-                if (categoriesData.success) {
+                if (categoriesData.success && categoriesData.categories) {
                     setCategories(categoriesData.categories);
                 }
 

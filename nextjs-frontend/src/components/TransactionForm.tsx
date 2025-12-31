@@ -80,7 +80,7 @@ export default function TransactionForm({
                     headers: { Authorization: `Bearer ${token}` },
                 });
                 const data = await res.json();
-                if (data.success) {
+                if (data.success && data.categories) {
                     setCategories(data.categories);
                     setFilteredCategories(data.categories);
                 } else {

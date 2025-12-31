@@ -94,7 +94,7 @@ export default function RecurringTransactionsPage() {
                     headers: { Authorization: `Bearer ${token}` },
                 });
                 const catData = await catRes.json();
-                if (catData.success) {
+                if (catData.success && catData.categories) {
                     setCategories(catData.categories);
                 }
 

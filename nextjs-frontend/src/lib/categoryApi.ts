@@ -15,7 +15,7 @@ export async function fetchCategories(token: string): Promise<Category[]> {
     if (!data.success) {
         throw new Error(data.error || "Failed to fetch categories");
     }
-    return data.categories;
+    return data.categories || [];
 }
 
 export async function addCategory(

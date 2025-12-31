@@ -62,7 +62,7 @@ export async function fetchTransactions(token: string) {
     });
     const data = await res.json();
     if (!data.success) throw new Error(data.error || "Error loading transactions");
-    return data.transactions;
+    return data.transactions || [];
 }
 
 export async function addTransaction(token: string, tx: {
