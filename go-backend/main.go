@@ -987,7 +987,7 @@ func editRecurringHandler(w http.ResponseWriter, r *http.Request) {
 		utils.RespondWithInternalError(w, err, "Edit recurring transaction")
 		return
 	}
-	w.Write([]byte("Recurring transaction updated!"))
+	utils.RespondWithSuccess(w, http.StatusOK, "Recurring transaction updated successfully", nil)
 }
 
 func deleteRecurringHandler(w http.ResponseWriter, r *http.Request) {
@@ -1010,7 +1010,7 @@ func deleteRecurringHandler(w http.ResponseWriter, r *http.Request) {
 		utils.RespondWithInternalError(w, err, "Delete recurring transaction")
 		return
 	}
-	w.Write([]byte("Recurring transaction deleted!"))
+	utils.RespondWithSuccess(w, http.StatusOK, "Recurring transaction deleted successfully", nil)
 }
 
 func searchAndFilterTransactionsHandler(w http.ResponseWriter, r *http.Request) {
