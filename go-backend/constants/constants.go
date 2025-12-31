@@ -114,4 +114,10 @@ const (
 
 	// AuthRateLimitBurst is the burst capacity for auth rate limiting
 	AuthRateLimitBurst = 5
+
+	// APIRateLimitPerSecond is the number of API requests allowed per second for authenticated endpoints
+	APIRateLimitPerSecond = 100.0 / 60.0 // 100 requests per 60 seconds
+
+	// APIRateLimitBurst is the burst capacity for API rate limiting
+	APIRateLimitBurst = 20
 )
