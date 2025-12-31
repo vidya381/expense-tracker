@@ -88,9 +88,6 @@ func ProcessRecurringTransactions(db *sql.DB) {
 			rt.LastOccurrence = nil
 		}
 
-		// fmt.Printf("Checking recurring id=%d desc=%q start=%s last_occurrence=%v recurrence=%s\n",
-		// 	rt.ID, rt.Description, rt.StartDate, rt.LastOccurrence, rt.Recurrence)
-
 		dueDates := GetAllMissedDueDates(rt, now)
 		if len(dueDates) > 0 {
 			// Create transactions with fresh context for each batch

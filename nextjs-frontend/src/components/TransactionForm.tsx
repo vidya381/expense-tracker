@@ -193,15 +193,6 @@ export default function TransactionForm({
                 formData.append('name', categoryInput.trim());
                 formData.append('type', categoryType);
 
-                // const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/category/add`, {
-                //     method: 'POST',
-                //     headers: { Authorization: `Bearer ${token}` },
-                //     body: formData,
-                // });
-                // const data = await res.json();
-                // if (!data.success) throw new Error(data.error || 'Failed to create category');
-                // usedCategoryId = data.category.id;
-                // setCategories((prev) => [...prev, data.category]);
                 const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/category/add`, {
                     method: 'POST',
                     headers: { Authorization: `Bearer ${token}` },
