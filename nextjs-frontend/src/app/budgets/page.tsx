@@ -294,13 +294,6 @@ export default function BudgetsPage() {
             <header className="bg-white/80 backdrop-blur-sm border-b border-gray-200/50 shadow-sm sticky top-0 z-40">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
                     <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5 sm:gap-2">
-                            <FiDollarSign className="w-6 h-6 sm:w-7 sm:h-7 text-emerald-600 flex-shrink-0" />
-                            <h1 className="text-lg sm:text-2xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
-                                <span className="hidden sm:inline">Budget Management</span>
-                                <span className="sm:hidden">Budgets</span>
-                            </h1>
-                        </div>
                         {/* Desktop Back Button - Hidden on Mobile */}
                         <button
                             onClick={() => router.push('/dashboard')}
@@ -310,6 +303,14 @@ export default function BudgetsPage() {
                             <FiArrowLeft className="w-4 h-4" />
                             <span>Back to Dashboard</span>
                         </button>
+                        {/* Mobile: Show title */}
+                        <h1 className="sm:hidden text-lg font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+                            Budgets
+                        </h1>
+                        {/* Icon */}
+                        <div className="w-10 h-10 bg-gradient-to-br from-emerald-600 to-teal-600 rounded-xl flex items-center justify-center shadow-lg">
+                            <FiDollarSign className="w-6 h-6 text-white" />
+                        </div>
                     </div>
                 </div>
             </header>
