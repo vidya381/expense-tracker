@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vidya381/expense-tracker-backend/models"
-	"github.com/vidya381/expense-tracker-backend/utils"
+	"github.com/vidya381/myspendo-backend/models"
+	"github.com/vidya381/myspendo-backend/utils"
 )
 
 // AddRecurringTransaction creates a new recurring transaction that automatically generates transactions.

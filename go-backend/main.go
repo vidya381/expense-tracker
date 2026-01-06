@@ -16,12 +16,12 @@ import (
 	"time"
 
 	"github.com/rs/cors"
-	"github.com/vidya381/expense-tracker-backend/constants"
-	"github.com/vidya381/expense-tracker-backend/handlers"
-	"github.com/vidya381/expense-tracker-backend/jobs"
-	"github.com/vidya381/expense-tracker-backend/middleware"
-	"github.com/vidya381/expense-tracker-backend/models"
-	"github.com/vidya381/expense-tracker-backend/utils"
+	"github.com/vidya381/myspendo-backend/constants"
+	"github.com/vidya381/myspendo-backend/handlers"
+	"github.com/vidya381/myspendo-backend/jobs"
+	"github.com/vidya381/myspendo-backend/middleware"
+	"github.com/vidya381/myspendo-backend/models"
+	"github.com/vidya381/myspendo-backend/utils"
 	"golang.org/x/time/rate"
 
 	_ "github.com/jackc/pgx/v5/stdlib" // pgx driver with database/sql

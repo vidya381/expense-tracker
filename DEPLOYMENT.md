@@ -70,8 +70,8 @@ NEXT_PUBLIC_API_URL=https://your-backend.onrender.com
 1. Create a new Web Service on Render
 2. Connect your GitHub repository
 3. Configure:
-   - **Build Command:** `go build -o expense-tracker-backend`
-   - **Start Command:** `./expense-tracker-backend`
+   - **Build Command:** `go build -o myspendo-backend`
+   - **Start Command:** `./myspendo-backend`
    - **Environment:** Go
 4. Add all environment variables listed above in the Environment section
 5. Deploy

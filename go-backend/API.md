@@ -1,4 +1,4 @@
-# Expense Tracker API Documentation
+# MySpendo API Documentation
 
 Base URL: `http://localhost:8080` (configurable via `constants.DefaultServerPort`)
 

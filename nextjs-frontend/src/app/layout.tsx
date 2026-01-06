@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Expense Tracker - Manage Your Finances",
+  title: "MySpendo - Personal Expense Tracker",
   description: "Track expenses, manage budgets, and analyze spending patterns with ease",
 };
 

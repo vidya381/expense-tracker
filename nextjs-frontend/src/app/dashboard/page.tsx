@@ -788,8 +788,8 @@ export default function Dashboard() {
                                 <FiDollarSign className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                             </div>
                             <h1 className="text-lg sm:text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                                <span className="hidden sm:inline">Expense Tracker</span>
-                                <span className="sm:hidden">Expenses</span>
+                                <span className="hidden sm:inline">MySpendo</span>
+                                <span className="sm:hidden">MySpendo</span>
                             </h1>
                         </div>
                         {/* Desktop Navigation - Hidden on Mobile */}

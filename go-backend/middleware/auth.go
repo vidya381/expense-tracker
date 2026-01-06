@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/vidya381/expense-tracker-backend/utils"
+	"github.com/vidya381/myspendo-backend/utils"
 )
 
 // Key type for setting/retrieving user ID in context

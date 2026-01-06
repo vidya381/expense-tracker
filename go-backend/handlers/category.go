@@ -5,8 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/vidya381/expense-tracker-backend/models"
-	"github.com/vidya381/expense-tracker-backend/utils"
+	"github.com/vidya381/myspendo-backend/models"
+	"github.com/vidya381/myspendo-backend/utils"
 )
 
 // AddCategory creates a new expense or income category for the specified user.

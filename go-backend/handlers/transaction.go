@@ -5,9 +5,9 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/vidya381/expense-tracker-backend/constants"
-	"github.com/vidya381/expense-tracker-backend/models"
-	"github.com/vidya381/expense-tracker-backend/utils"
+	"github.com/vidya381/myspendo-backend/constants"
+	"github.com/vidya381/myspendo-backend/models"
+	"github.com/vidya381/myspendo-backend/utils"
 )
 
 // AddTransaction creates a new expense or income transaction for the user.

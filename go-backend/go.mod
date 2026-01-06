@@ -1,4 +1,4 @@
-module github.com/vidya381/expense-tracker-backend
+module github.com/vidya381/myspendo-backend
 
 go 1.24.5
 

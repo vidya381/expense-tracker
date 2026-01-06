@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/vidya381/expense-tracker-backend/constants"
+	"github.com/vidya381/myspendo-backend/constants"
 )
 
 // ValidateDate checks if a date string is in YYYY-MM-DD format and is a valid date

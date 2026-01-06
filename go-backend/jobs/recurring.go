@@ -5,8 +5,8 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/vidya381/expense-tracker-backend/models"
-	"github.com/vidya381/expense-tracker-backend/utils"
+	"github.com/vidya381/myspendo-backend/models"
+	"github.com/vidya381/myspendo-backend/utils"
 )
 
 // StartRecurringJob launches the recurring transaction processor in a background goroutine.

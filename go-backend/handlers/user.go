@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/vidya381/expense-tracker-backend/constants"
-	"github.com/vidya381/expense-tracker-backend/utils"
+	"github.com/vidya381/myspendo-backend/constants"
+	"github.com/vidya381/myspendo-backend/utils"
 	"golang.org/x/crypto/bcrypt"
 )
 

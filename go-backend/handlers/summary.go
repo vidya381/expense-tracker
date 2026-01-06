@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/vidya381/expense-tracker-backend/utils"
+	"github.com/vidya381/myspendo-backend/utils"
 )
 
 // GetTotals calculates the total expenses and income for the specified user across all time.

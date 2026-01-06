@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vidya381/expense-tracker-backend/utils"
+	"github.com/vidya381/myspendo-backend/utils"
 	"golang.org/x/time/rate"
 )
 

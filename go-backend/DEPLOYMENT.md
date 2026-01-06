@@ -65,13 +65,13 @@ export DB_HOST=your-db-host
 export DB_PORT=5432
 export DB_USER=your-db-user
 export DB_PASSWORD=your-db-password
-export DB_NAME=expense_tracker
+export DB_NAME=myspendo
 export JWT_SECRET=your-strong-secret-minimum-32-characters
 export CORS_ORIGIN=https://your-frontend.com
 export ENFORCE_HTTPS=true
 
 # Run the application
-./expense-tracker-backend
+./myspendo-backend
 ```
 
 ### HTTPS Setup with Reverse Proxy

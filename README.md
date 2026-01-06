@@ -1,4 +1,4 @@
-# 💰 Expense Tracker
+# 💰 MySpendo - Personal Expense Tracker
 
 A production-ready, full-stack personal finance management application for tracking income, expenses, budgets, and analyzing spending patterns with comprehensive analytics.
 
@@ -109,7 +109,7 @@ A production-ready, full-stack personal finance management application for track
 ## 📁 Project Structure
 
 ```
-expense-tracker/
+myspendo/
 ├── go-backend/                 # Backend API server
 │   ├── main.go                # Entry point, routes, HTTP server
 │   ├── db.go                  # Database connection utilities
@@ -182,8 +182,8 @@ Before you begin, ensure you have the following installed:
 #### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/vidya381/expense-tracker.git
-cd expense-tracker
+git clone https://github.com/vidya381/myspendo.git
+cd myspendo
 ```
 
 #### 2. Set Up PostgreSQL Database
@@ -195,11 +195,11 @@ Create a new database for the application:
 psql -U postgres
 
 # Create database
-CREATE DATABASE expense_tracker;
+CREATE DATABASE myspendo;
 
 # Create user (optional)
-CREATE USER expense_user WITH PASSWORD 'your_password';
-GRANT ALL PRIVILEGES ON DATABASE expense_tracker TO expense_user;
+CREATE USER myspendo_user WITH PASSWORD 'your_password';
+GRANT ALL PRIVILEGES ON DATABASE myspendo TO myspendo_user;
 
 # Exit
 \q
@@ -279,14 +279,14 @@ Create a `.env` file in the `go-backend` directory:
 # Database Configuration (Choose Option 1 OR 2)
 
 # Option 1: Connection String (Recommended)
-DATABASE_URL=postgresql://username:password@localhost:5432/expense_tracker?sslmode=disable
+DATABASE_URL=postgresql://username:password@localhost:5432/myspendo?sslmode=disable
 
 # Option 2: Individual Parameters
 # DB_HOST=localhost
 # DB_PORT=5432
 # DB_USER=postgres
 # DB_PASSWORD=your_password
-# DB_NAME=expense_tracker
+# DB_NAME=myspendo
 # DB_SSLMODE=disable
 
 # Authentication (REQUIRED)
@@ -625,7 +625,7 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 **Vidyasagar**
 
 - GitHub: [@vidya381](https://github.com/vidya381)
-- Project Repository: [expense-tracker](https://github.com/vidya381/expense-tracker)
+- Project Repository: [MySpendo](https://github.com/vidya381/myspendo)
 
 ---
 
@@ -645,7 +645,7 @@ If you encounter any issues or have questions:
 
 1. Check the [PROJECT_DESCRIPTION.md](PROJECT_DESCRIPTION.md) for detailed documentation
 2. Review the [DEPLOYMENT.md](DEPLOYMENT.md) for deployment issues
-3. Open an issue on [GitHub Issues](https://github.com/vidya381/expense-tracker/issues)
+3. Open an issue on [GitHub Issues](https://github.com/vidya381/myspendo/issues)
 
 ---
 

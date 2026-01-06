@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vidya381/expense-tracker-backend/constants"
-	"github.com/vidya381/expense-tracker-backend/models"
-	"github.com/vidya381/expense-tracker-backend/utils"
+	"github.com/vidya381/myspendo-backend/constants"
+	"github.com/vidya381/myspendo-backend/models"
+	"github.com/vidya381/myspendo-backend/utils"
 )
 
 // AddBudget creates a new budget for a user

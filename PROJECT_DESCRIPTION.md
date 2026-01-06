@@ -1,4 +1,5 @@
-# Expense Tracker - Comprehensive Project Description
+# MySpendo - Personal Expense Tracker
+## Comprehensive Project Description
 
 ## Table of Contents
 - [Overview](#overview)
@@ -23,7 +24,7 @@ This is a **full-stack personal finance management application** built with Go a
 
 ### Project Structure
 ```
-expense-tracker/
+myspendo/
 ├── go-backend/              # Go REST API server
 │   ├── main.go             # Entry point, HTTP server, routes
 │   ├── db.go               # Database connection utilities
@@ -1910,7 +1911,7 @@ DB_HOST=localhost
 DB_PORT=5432
 DB_USER=postgres
 DB_PASSWORD=your_password
-DB_NAME=expense_tracker
+DB_NAME=myspendo
 DB_SSLMODE=disable
 
 # ============================================
@@ -2480,7 +2481,7 @@ WHERE table_schema = 'public';
 #### Development
 ```bash
 # .env (backend)
-DATABASE_URL=postgresql://postgres:password@localhost:5432/expense_tracker?sslmode=disable
+DATABASE_URL=postgresql://postgres:password@localhost:5432/myspendo?sslmode=disable
 JWT_SECRET=dev_secret_not_secure
 CORS_ORIGIN=http://localhost:3000
 ENFORCE_HTTPS=false
@@ -2714,8 +2715,8 @@ The project serves as an excellent reference for building secure, scalable Go + 
 
 ---
 
-**Project Repository:** [Add your GitHub URL here]
-**Live Demo:** [Add your deployment URL here]
+**Project Repository:** https://github.com/vidya381/myspendo
+**Live Demo:** https://myspendo.vercel.app
 **Contact:** [Add your contact information here]
 
 ---
