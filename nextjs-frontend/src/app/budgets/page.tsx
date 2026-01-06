@@ -303,10 +303,15 @@ export default function BudgetsPage() {
                             <FiArrowLeft className="w-4 h-4" />
                             <span>Back to Dashboard</span>
                         </button>
-                        {/* Mobile: Show title */}
-                        <h1 className="sm:hidden text-lg font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
-                            Budgets
-                        </h1>
+                        {/* Mobile: Show icon + title */}
+                        <div className="flex sm:hidden items-center space-x-2">
+                            <div className="w-8 h-8 bg-gradient-to-br from-emerald-600 to-teal-600 rounded-xl flex items-center justify-center shadow-lg">
+                                <FiDollarSign className="w-5 h-5 text-white" />
+                            </div>
+                            <h1 className="text-lg font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+                                Budgets
+                            </h1>
+                        </div>
                     </div>
                 </div>
             </header>
