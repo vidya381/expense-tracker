@@ -307,10 +307,6 @@ export default function BudgetsPage() {
                         <h1 className="sm:hidden text-lg font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
                             Budgets
                         </h1>
-                        {/* Icon */}
-                        <div className="w-10 h-10 bg-gradient-to-br from-emerald-600 to-teal-600 rounded-xl flex items-center justify-center shadow-lg">
-                            <FiDollarSign className="w-6 h-6 text-white" />
-                        </div>
                     </div>
                 </div>
             </header>
