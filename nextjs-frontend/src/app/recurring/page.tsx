@@ -397,41 +397,15 @@ export default function RecurringTransactionsPage() {
                                 <span className="sm:hidden">Recurring</span>
                             </h1>
                         </div>
-                        {/* Desktop Navigation - Hidden on Mobile */}
-                        <div className="hidden sm:flex items-center gap-2 sm:gap-3">
-                            <button
-                                onClick={() => router.push('/dashboard')}
-                                className="px-3 sm:px-4 py-2 text-sm font-medium text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all duration-200 flex items-center gap-1 sm:gap-2"
-                                aria-label="Dashboard"
-                            >
-                                <FiHome className="w-4 h-4" />
-                                <span>Dashboard</span>
-                            </button>
-                            <button
-                                onClick={() => router.push('/transactions')}
-                                className="px-3 sm:px-4 py-2 text-sm font-medium text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all duration-200 flex items-center gap-1 sm:gap-2"
-                                aria-label="Transactions"
-                            >
-                                <FiList className="w-4 h-4" />
-                                <span>Transactions</span>
-                            </button>
-                            <button
-                                onClick={() => router.push('/budgets')}
-                                className="px-3 sm:px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg flex items-center gap-1 sm:gap-2"
-                                aria-label="Budgets"
-                            >
-                                <FiDollarSign className="w-4 h-4" />
-                                <span>Budgets</span>
-                            </button>
-                            <button
-                                onClick={logout}
-                                className="flex items-center gap-2 px-3 sm:px-4 py-2 text-sm font-medium text-gray-700 hover:text-indigo-600 transition-colors duration-200"
-                                aria-label="Logout"
-                            >
-                                <FiLogOut className="w-4 h-4" />
-                                <span>Logout</span>
-                            </button>
-                        </div>
+                        {/* Desktop Back Button - Hidden on Mobile */}
+                        <button
+                            onClick={() => router.push('/dashboard')}
+                            className="hidden sm:flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all duration-200"
+                            aria-label="Back to Dashboard"
+                        >
+                            <FiArrowLeft className="w-4 h-4" />
+                            <span>Back to Dashboard</span>
+                        </button>
                     </div>
                 </div>
             </header>

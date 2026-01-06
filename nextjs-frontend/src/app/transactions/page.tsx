@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { FiHome, FiRepeat, FiDollarSign, FiList, FiEdit2, FiTrash2, FiArrowUp, FiCalendar, FiX, FiPlus } from 'react-icons/fi';
+import { FiHome, FiRepeat, FiDollarSign, FiList, FiEdit2, FiTrash2, FiArrowUp, FiCalendar, FiX, FiPlus, FiArrowLeft } from 'react-icons/fi';
 import { useAuth } from '../../context/AuthContext';
 import { format, parseISO, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import TransactionForm from '../../components/TransactionForm';
@@ -357,6 +357,15 @@ export default function TransactionsPage() {
                                 Transactions
                             </h1>
                         </div>
+                        {/* Desktop Back Button - Hidden on Mobile */}
+                        <button
+                            onClick={() => router.push('/dashboard')}
+                            className="hidden sm:flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all duration-200"
+                            aria-label="Back to Dashboard"
+                        >
+                            <FiArrowLeft className="w-4 h-4" />
+                            <span>Back to Dashboard</span>
+                        </button>
                     </div>
                 </div>
             </header>
